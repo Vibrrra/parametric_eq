@@ -1,0 +1,18 @@
+[package]
+name = "parametric_eq"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+atomic_float = "1.1.0"
+biquad = "0.4.2"
+crossbeam = "0.8.4"
+crossbeam-channel = "0.5.13"
+jack = "0.13.0"
+rand = "0.8.5"
+rand_distr = "0.4.3"
+slint = "1.7.2"
+statrs = "0.17.1"
+
+[build-dependencies]
+slint-build = "1.7.2"
