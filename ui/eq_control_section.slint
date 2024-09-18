@@ -1,0 +1,398 @@
+
+import {VerticalBox, HorizontalBox, TabWidget, Button, TextEdit, ListView, ComboBox, LineEdit} from "std-widgets.slint";
+import {EQCanvasLogic,EQCurveData, EQGraphManager, DraggableLogic, FilterType, EQDesign} from "eq_canvas.slint";
+
+
+
+struct Filter {
+    id: int,
+    selected: { str: string,type: FilterType},
+}
+// EQ CONTROLS SECTION -> left section -> 1st-4th Filter; right section -> 5th-8th Filter
+
+export global EQ_CONTROL_SECTION_MANAGER {
+    property <[int]> filter_ids: [0,1,2,3,4,5,6,7];
+    in-out property <int> filter_id: 0;
+    in-out property <bool> show_filter_type_selection: false;
+    in-out property <length> place_filter_selection_x;
+    in-out property <length> place_filter_selection_y;
+
+}
+
+
+export component ON_OFF_SWITCH {
+    
+    in-out property <int> id;
+    in-out property <bool> eq_on: EQGraphManager.draggable_positions[id].active;  
+    Rectangle {
+        height: parent.height; 
+        width: parent.height;    
+        border-radius: parent.height/2;
+        border-width: 10px;  
+        toucharea := TouchArea { clicked =>  {
+            EQ-CONTROL-SECTION-MANAGER.filter_id = id;
+            eq_on = !eq_on; 
+            EQGraphManager.draggable_positions[id].active = eq_on; 
+            EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[id]);
+            }
+        }
+        Text {text: eq_on ? "O" : "X"; font-size: 26px; font-weight: 900; font-family: EQDesign.main-font;}
+        background: eq_on? #71cebb: #9ba8d0; //eq_on ? #76ce71: #9ba8d0  ;                        
+        
+        // border-radius: 5px;
+        border-color: eq_on? #71cebb: #9ba8d0; //#9ba8d0; 
+        opacity: eq_on? 1.0: 0.1;
+        drop-shadow-color: #353c51;
+        drop-shadow-offset-x: 1px;
+        drop-shadow-offset-y: 1px;
+       
+    }
+}
+
+export component FILTER_SELECTION_POP_UP inherits PopupWindow{
+    
+    // close-on-click: false;
+
+    in-out property <int> id;
+    in-out property <bool> show_selection: false;
+    in-out property <length> place_x;
+    in-out property <length> place_y;
+    width: 100px;
+    
+    VerticalLayout {
+        alignment: start;
+        for filter in EQGraphManager.list-of-filter-types:
+            Rectangle {
+                width: parent.width;
+                height: 40px;
+                ta := TouchArea { 
+                    height: parent.height; 
+                    width: parent.width; 
+                    clicked => { 
+                        EQGraphManager.draggable_positions[id].filter_type = filter;
+                        EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[id]);
+                        EQGraphManager.set_eq_curve(id, EQGraphManager.new_curve);
+                        // EQ-CONTROL-SECTION-MANAGER.show_filter_type_selection = false;
+                        root.close();                        
+                    } }
+                Text {text: filter.str; horizontal-alignment: center; vertical-alignment: center; font-family: EQDesign.main-font; font-size: EQDesign.font-main-size;}
+                background: ta.has-hover? #9ba8d0 : #c59bd0;
+                // border-radius: 5px;
+                // border-width: 1px;
+                drop-shadow-color: #353c51;
+                drop-shadow-offset-x: 1px;
+                drop-shadow-offset-y: 1px;   
+            }
+    }
+    
+    
+}
+
+export component FILTER_TYPE_SELECTION_BOX {  
+    // Filter Selection Custom ComboBox - Closed -> Pop-up Filter Selection few lines below
+    in-out property <int> id;
+    in property <bool> eq_on;
+    VerticalLayout {
+        eq1_filter_select := Rectangle {
+            width: parent.width;
+            height: parent.height;
+            ta := TouchArea { 
+                height: parent.height; 
+                width: parent.width; 
+                clicked => { 
+                    EQ-CONTROL-SECTION-MANAGER.show_filter_type_selection = 
+                    !EQ-CONTROL-SECTION-MANAGER.show_filter_type_selection && true;
+                    EQ-CONTROL-SECTION-MANAGER.filter_id = id; 
+                    EQ-CONTROL-SECTION-MANAGER.place_filter_selection_y = self.absolute-position.y - 7.5*40px;
+                    EQ-CONTROL-SECTION-MANAGER.place_filter_selection_x = self.absolute-position.x;
+                    pop-up.show();
+                } }
+            // in-out property <bool> selection_button_clicked: false; 
+            in-out property <{str: string, type: FilterType}> selected: 
+                EQGraphManager.draggable_positions[id].filter_type;  
+            
+            Rectangle {
+                Text {text: EQGraphManager.draggable_positions[id].filter_type.str; horizontal-alignment: center; vertical-alignment: center; font-family: EQDesign.main-font; font-size: EQDesign.font-main-size;}
+                width: parent.width;
+                height: parent.height;
+                // border-radius: 5px;
+                background: ta.has-hover ?  #b6bdd2 : #9ba8d0; //#9ba8d0;
+                opacity: eq_on? 1.0: 0.1;
+                // border-width: 1px;
+                drop-shadow-color: #353c51;
+                visible: true;
+                drop-shadow-offset-x: 1px;
+                drop-shadow-offset-y: 1px;   
+            }
+            pop-up := FILTER-SELECTION-POP-UP {
+                id: EQ-CONTROL-SECTION-MANAGER.filter_id;
+                x: parent.x + parent.width;
+                y: parent.y - parent.height * 3;
+                width: parent.width;
+                height: parent.height * 7;
+            }
+        }
+    
+    }
+}
+
+export component FREQUENCY_EDIT_BOX {
+    in-out property <int> id;
+    in-out property <bool> eq_on;
+    Rectangle {
+        width: parent.width; 
+        height: parent.height;
+        // border-radius: 5px; 
+        background: ta_freq.has-hover ?  #b6bdd2 : #9ba8d0;
+        opacity: eq_on? 1.0: 0.1;
+        drop-shadow-color: #353c51;
+        drop-shadow-offset-x: 1px;
+        drop-shadow-offset-y: 1px;
+        in-out property <bool> edit_freq: false;
+        in property <bool> has-hover: ti-freq.has-focus;
+        property <float> freq: EQGraphManager.draggable_positions[id].x;
+        ta-freq := TouchArea { height: parent.height; width: parent.width; clicked => { edit_freq = !edit_freq; } }
+        
+        ti-freq := TextInput {
+            
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            height: parent.height; 
+            font-family: EQDesign.main-font;
+            font-size: EQDesign.font-main-size;
+            width: parent.width; 
+            text: round(EQGraphManager.lin_to_f_skew(EQGraphManager.draggable_positions[id].x)*10)/10 + " Hz"; 
+            accepted => { EQGraphManager.draggable_positions[id].x = EQGraphManager.f_to_lin_skew(
+                clamp(self.text.to-float(),EQGraphManager.min_freq,EQGraphManager.max_freq)); 
+                EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[id]);
+                EQGraphManager.set_eq_curve(id, EQGraphManager.new_curve);
+                edit_freq = false;
+                ti-freq.clear-focus();
+            }
+            TouchArea {width: parent.width; height: parent.height; clicked => {ti-freq.focus();}}
+        }
+    }
+}
+
+
+// (eq_canvas_half_height - filter.y) / (2.0 * db_scaling_factor);
+// invert: eq_canvas_half_height - (2.0 * db_scaling_factor) * filter.y
+
+
+export component GAIN_EDIT_BOX {
+    in-out property <int> id;
+    in-out property <bool> eq_on;
+    callback gain_to_mx(float) -> float;
+    gain_to_mx(gain) => {
+        EQGraphManager.eq_graph_height/2px - (2.0 * EQGraphManager.db_scaling_factor) * gain;
+    }
+    callback mx_to_gain(float) -> float;
+    mx_to_gain(mx) => {
+        (EQGraphManager.eq_graph_height/2px - mx) / (EQGraphManager.db_scaling_factor);
+    }
+    Rectangle {
+        width: parent.width; 
+        height: parent.height;
+        // border-radius: 5px; 
+        background: ta-gain.has-hover ?  #b6bdd2 : #9ba8d0;
+        opacity: eq_on? 1.0: 0.1;
+
+        drop-shadow-color: #353c51;
+        drop-shadow-offset-x: 1px;
+        drop-shadow-offset-y: 1px;
+        in-out property <bool> edit_gain: false;
+        in property <bool> has-hover: te-gain.has-focus;
+        property <float> gain: EQGraphManager.draggable_positions[id].y;
+        ta-gain := TouchArea { height: parent.height; width: parent.width; clicked => { edit_gain = !edit_gain; } }
+        
+        te-gain := TextInput {
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            height: parent.height; 
+            width: parent.width; 
+            font-family: EQDesign.main-font;
+            font-size: EQDesign.font-main-size;
+            text: EQGraphManager.draggable_positions[id].gain  + " dB"; 
+            accepted => { self.text = 
+                gain_to_mx(clamp(self.text.to-float(),EQGraphManager.min_gain, EQGraphManager.max_gain)); 
+                EQGraphManager.draggable_positions[id].y = gain_to_mx(self.text.to-float());
+                EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[id]);
+                EQGraphManager.set_eq_curve(id, EQGraphManager.new_curve);
+                edit_gain = false;
+                te-gain.clear-focus();
+            }
+        }
+    }
+}
+
+export component Q_EDIT_BOX {
+    
+    in-out property <bool> eq_on;
+    in-out property <int> id;
+    in-out property <bool> edit_q: false;
+        in property <bool> has-hover: ti.has-focus;
+        property <float> q-value: EQGraphManager.draggable_positions[id].q-value;
+        
+    Rectangle {
+        width: parent.width; 
+        height: parent.height;
+        // border-radius: 5px; 
+        background: ta-q.has-hover ?  #b6bdd2 :#9ba8d0;
+        opacity: eq_on? 1.0: 0.1;
+        drop-shadow-color: #353c51;
+        drop-shadow-offset-x: 1px;
+        drop-shadow-offset-y: 1px;  
+        ta-q := TouchArea { height: parent.height; width: parent.width; clicked => { edit_q = !edit_q; } }
+        
+        ti := TextInput {
+            text: "Q: " + EQGraphManager.draggable_positions[id].q_value; 
+            font-family: EQDesign.main-font;
+            font-size: EQDesign.font-main-size;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            selection-background-color: transparent;
+            accepted => { self.text = 
+                clamp(self.text.to-float(),EQGraphManager.min_q, EQGraphManager.max_q); 
+                EQGraphManager.draggable_positions[id].q_value = self.text.to-float();
+                EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[id]);
+                EQGraphManager.set_eq_curve(id, EQGraphManager.new_curve);
+                edit_q = false;
+                self.clear-focus();
+            }
+        }
+        // le-q := LineEdit {
+            
+        //     horizontal-alignment: left;
+        //     height: parent.height; 
+        //     width: parent.width; 
+    }   
+            
+    
+    
+}
+
+export component FILTER_CONTROL {
+    in-out property <int> id;
+    HorizontalLayout {
+        alignment: center;
+        height: 40px;
+        max-width: 500px;
+        padding-left: 20px;
+        spacing: 20px;
+        on-switch := ON-OFF-SWITCH {id: id;height: 40px; width: 40px;}
+        // Rectangle {
+        //     width: 360px;
+        //     height: 40px;
+        //     background:  #9ba8d0;
+        //         drop-shadow-color: #353c51;
+        //         drop-shadow-offset-x: 1px;
+        //         drop-shadow-offset-y: 1px;
+        //         opacity: on-switch.eq_on? 1.0 : 0.1; 
+            
+        HorizontalLayout {
+            
+                // width: 40px;
+                // height: 40px;
+                            
+             
+            height: 40px;
+            width: 460px;
+            // alignment: start;
+            
+            spacing: 0px;
+            
+            fst_box := FILTER_TYPE_SELECTION_BOX {id: id; width: 100px; height: 40px; eq_on: on-switch.eq_on;}
+            fre_box := FREQUENCY_EDIT_BOX {id: id; height: 40px; width: 80px; eq_on: on-switch.eq_on;}
+            ge_box := GAIN_EDIT_BOX {id: id; height: 40px; width: 60px; eq_on: on-switch.eq_on;}
+            Q_EDIT_BOX {id: id; height: 40px; width: 60px;  eq_on: on-switch.eq_on;}
+           
+        }
+    // }
+    }
+
+}
+
+export component EQ_CONTROL_SECTION {
+    Rectangle {
+        width: parent.width; //800px;
+        height: parent.height;
+        HorizontalLayout { 
+        alignment: stretch;
+        
+
+        // list of filter
+        in-out property <[Filter]> filters;
+        
+        // selected filter - for pop-up 
+        in-out property <int> filter_id;
+        in-out property <bool> show_selection: false;
+        in-out property <length> place_x;
+        in-out property <length> place_y;
+        // alignment: start;
+
+        // EQ Controls Left Section
+        VerticalLayout {
+            // alignment: stretch;
+            alignment: center;
+            spacing: 1px;
+            width: parent.width/2;
+            // EQ Filter 1  
+                for i in [0,1,2,3]:
+                    FILTER_CONTROL {id: i;}
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 1px;
+            width: parent.width/2;
+            // EQ Filter 5
+                for i in [4,5,6,7]:
+                    FILTER_CONTROL {id: i;}
+        }
+
+    }
+}
+}
+
+
+
+
+
+export component MultiTapWidget {
+    property <int> activeTabIndex: 0;
+    property <[string]> tabNames: ["Tab 1", "Tab 2", "Tab 3"];
+    width: 300px;
+    VerticalLayout {
+        
+        // TabButton
+        HorizontalLayout {
+            alignment: LayoutAlignment.center;
+            for tabName[i] in root.tabNames:
+                Rectangle {
+                    width: 100px;
+                    height: 40px;
+                    background: root.activeTabIndex == i ? #9ba8d0 : #b6bdd2;
+                    Text {
+                        text: tabName;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        font-family: EQDesign.main-font;
+                        font-size: EQDesign.font-main-size;
+                    }
+                    touch := TouchArea {
+                        mouse-cursor: MouseCursor.n-resize;
+                        clicked => { root.activeTabIndex = i;}
+                    }
+                }
+        }
+        
+    
+    }
+    Rectangle {}    
+
+}
+
+component Component inherits Window{
+    width: 800px;
+    height: 600px;
+    MultiTapWidget {}   
+} 

@@ -1,7 +1,7 @@
 
 // #![windows_subsystem = "windows"]
 
-use std::{f32::{consts::E, INFINITY, NAN}, thread, vec};
+use std::{f32::{consts::E, INFINITY, NAN, NEG_INFINITY}, thread, vec};
 
 use biquad::{Coefficients, Hertz, Type};
 use filters::BiquadFilter;
@@ -23,13 +23,14 @@ pub struct EqCurves {
     curves: Vec<f32>,
     n_samples: usize,
     n_curves: usize,
-    is_active: [bool; 3],
+    is_active: [bool; N_FILTERS],
     sum_curve: Vec<f32>
 }
 impl EqCurves {
-    pub fn copy_from_slice(&mut self, n: usize, slice: &[f32]) {
+    pub fn copy_from_slice(&mut self, n: usize, slice: &[f32], active: bool) {
         assert!(slice.len() == self.n_samples);
         assert!(n < self.n_curves);
+        self.is_active[n] = active;
         let o = &mut self.curves[n*self.n_samples .. (n+1)*self.n_samples];
         o.copy_from_slice(slice);
     }
@@ -61,7 +62,7 @@ fn match_biquad_type(biquad_type: UI::FilterType, gain: f32) -> Type<f32> {
     }   
 }
 
-
+const N_FILTERS: usize = 8;
 fn main() {
     println!("Hello, world!");
 
@@ -76,13 +77,13 @@ fn main() {
     let sampling_rate = 48000.0;
     let sampling_rate_hz = Hertz::<f32>::from_hz(sampling_rate).unwrap();
     let n_freq_points = 250;
-    let n_filter = 3;
+    
     let mut eq_curves = EqCurves {
-        curves: vec![0.0f32; n_freq_points*n_filter],
+        curves: vec![0.0f32; n_freq_points*N_FILTERS],
         sum_curve: vec![0.0; n_freq_points],
-        n_curves: n_filter,
+        n_curves: N_FILTERS,
         n_samples: n_freq_points,
-        is_active: [true; 3],
+        is_active: [true; N_FILTERS],
     };
     // let (tx, rx) = crossbeam::channel::bounded(1);
     
@@ -105,21 +106,6 @@ fn main() {
         // min_index
     });
 
-    
-    // ui.global::<UI::EQCanvasLogic>().on_get_nearest_filter(move|d| {
-    //     let n = d.row_count();
-    //     // println!("N: {n}");
-    //     let min_val = d.iter().fold(INFINITY, |min, val| { if val < min {val} else {min}});
-    //     // println!("Min: {min_val}");
-    //     let index = d.iter().position(|x| x == min_val).unwrap();
-    //     // dbg!(index as i32);
-    //     if min_val < clickable_radius {
-    //         index as i32
-    //     } else {
-    //         -1
-    //     }
-    //     // min_index
-    // });
 
     // Pre calculate some values 
     // TODO: Delete this and make it dynamic in the future
@@ -136,19 +122,19 @@ fn main() {
         let db_scaling_factor = ui_c.global::<UI::EQGraphManager>().get_db_scaling_factor();
         
         // scale gain. Mouse-Y-Pos -> Gain
-        let gain = (eq_canvas_half_height - filter.y) / (2.0 * db_scaling_factor);
-
+        let gain = 30.0  * (eq_canvas_half_height - filter.y) / eq_canvas_half_height;//(2.0 * db_scaling_factor);
+        dbg!(gain);
         // scale frequency. Mouse-X-Pos -> Frequency
         let freq = lin_to_f_skew(20.0, 20000.0, eq_canvas_half_width as usize * 2 , 0.3, filter.x);
         
         // get filter type. Converts UI-Enum-Variant(Slint) to Biquad-Enum-Variant (Rust)
-        let filter_type = match_biquad_type(filter.filter_type, gain);
-
-        let q_value = clamp(
-            filter.q_value, 
-            ui_c.global::<UI::EQGraphManager>().get_min_q_value(),
-            ui_c.global::<UI::EQGraphManager>().get_max_q_value()
-        );
+        // let fl: UI::FilterType = filter.filter_type;
+        let filter_type = match_biquad_type(filter.filter_type.1, gain); 
+        
+        let q_value = filter.q_value.clamp( 
+            ui_c.global::<UI::EQGraphManager>().get_min_q(),
+            ui_c.global::<UI::EQGraphManager>().get_max_q());
+        
         // calculate new coefficients
         let new_coeffs = Coefficients::<f32>::from_params(filter_type, sampling_rate_hz, Hertz::<f32>::from_hz(freq).unwrap(), q_value).unwrap();
         
@@ -159,18 +145,20 @@ fn main() {
              sampling_rate, 250);
 
         // update eq_curves container
-        eq_curves.copy_from_slice(filter.id as usize, &new_response);
+        eq_curves.copy_from_slice(filter.id as usize, &new_response, filter.active);
         
         // update sum curve
         eq_curves.update();
 
         // update eq_graph_manager with new sum curve
-        let eq_cruves_vector = &eq_curves.sum_curve.iter().enumerate().map(|x| {(x.0 as f32 *eq_canvas_half_width / (n_freq_points-1) as f32, 50.0 - *x.1 * db_scaling_factor )}).collect::<Vec<(f32, f32)>>();
+        // let eq_cruves_vector = &eq_curves.sum_curve.iter().enumerate().map(|x| {(x.0 as f32 *eq_canvas_half_width / (n_freq_points-1) as f32, 50.0 - *x.1 * db_scaling_factor )}).collect::<Vec<(f32, f32)>>();
+        let eq_cruves_vector = &eq_curves.sum_curve.iter().enumerate().map(|x| {(x.0 as f32 * eq_canvas_half_width / (n_freq_points-1) as f32, eq_canvas_half_height/2.0 - (*x.1 /30.0) * (eq_canvas_half_height/2.0) )}).collect::<Vec<(f32, f32)>>();
         let smooth_svg_path = points_to_smooth_svg_path(&eq_cruves_vector, 0.5);
         ui_c.global::<UI::EQGraphManager>().set_eq_sum_curve(smooth_svg_path);
 
         // update eq_canvas with new curve
-        let biquad_response_vector: Vec<(f32, f32)> = new_response.iter().enumerate().map(|x| {(x.0 as f32 *eq_canvas_half_width / (n_freq_points-1) as f32, 50.0 - *x.1 * db_scaling_factor )}).collect();
+        // let biquad_response_vector: Vec<(f32, f32)> = new_response.iter().enumerate().map(|x| {(x.0 as f32 *eq_canvas_half_width / (n_freq_points-1) as f32, 50.0 - *x.1 * db_scaling_factor )}).collect();
+        let biquad_response_vector: Vec<(f32, f32)> = new_response.iter().enumerate().map(|x| {(x.0 as f32 *eq_canvas_half_width / (n_freq_points-1) as f32, eq_canvas_half_height/2.0 - (*x.1 /30.0) * (eq_canvas_half_height/2.0) )}).collect();
         let smooth_svg_path = points_to_smooth_svg_path(&biquad_response_vector, 0.5);
         ui_c.global::<UI::EQGraphManager>().set_new_curve(smooth_svg_path); 
         // return new curve (svg path)

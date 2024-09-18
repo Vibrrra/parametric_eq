@@ -1,179 +1,59 @@
-import {VerticalBox, HorizontalBox, TabWidget, Button, TextEdit, ListView, ComboBox, LineEdit} from "std-widgets.slint";
+import {VerticalBox, HorizontalBox, TabWidget, Button, TextEdit, ListView, ComboBox, LineEdit, AboutSlint} from "std-widgets.slint";
 import {EQCanvas, EQCanvasLogic,EQCurveData, EQGraphManager, DraggableLogic, FilterType} from "eq_canvas.slint";
-
+import {EQ-CONTROL-SECTION-MANAGER, EQ_CONTROL_SECTION, FILTER-SELECTION-POP-UP} from "eq_control_section.slint";
 // global exports
 export {EQGraphManager, EQCanvasLogic, DraggableLogic}
 
 
+struct Filter {
+    id: int,
+    selected: { str: string,type: FilterType},
+}
 
 export component AppWindow inherits Window {
 
-    preferred-width: 800px;
-    preferred-height: 700px;
-    width: 800px;
-    height: 600px;
+    preferred-width: EQGraphManager.eq_graph_width;
+    height: 670px;
+    // width: EQGraphManager.eq_graph_width;
+    // height: EQGraphManager.eq_graph_height;
     in property <[string]> curve_data;
 
-   
-    outer_layer := VerticalBox {
-        alignment: start;
-        width: EQGraphManager.eq_graph_width;
-        height: EQGraphManager.eq_graph_height;
+    Rectangle { width: parent.width; height: parent.height; background: #353c51;}
+    ta := TouchArea { fs := FocusScope {} clicked => {fs.focus()}}
+    outer_layer := VerticalLayout { 
+        // width: parent.width;
+        // alignment: start;    
         
+        width: EQGraphManager.eq_graph_width;
+        height: parent.height;
+        alignment: start;
+        // spacing: 20px;
         // DEBUG here
-        HorizontalBox { height: 50px; width: 400px;   
-            Text {text: EQGraphManager.draggable_positions[0].x; height: 50px; width: 100px; }
-            Text {text: EQGraphManager.lin_to_f_skew(EQGraphManager.draggable_positions[0].x); height: 50px; width: 100px; }
-      
-            }
+        HorizontalLayout { height: 90px; width: EQGraphManager.eq_graph_width;   
+            alignment:center;
+            Text {vertical-alignment: center; horizontal-alignment: center; text: "TheEQfromBelow"; font-family: "CodeNewRoman Nerd Font"; font-size: 60px;}
+        }
         
         // EQ CANVAS SECTION
-        eq_canvas := EQCanvas {}
-        
-        // EQ CONTROLS SECTION -> left section -> 1st-4th Filter; right section -> 5th-8th Filter
-        HorizontalLayout { 
-        
-            // EQ Controls Left Section
-            VerticalLayout {
-                alignment: start;
-                
-                // EQ Filter 1
-                HorizontalLayout {
-                    height: 40px;
-                    width: 250px;
-                    alignment: start;
-                    spacing: 5px;
-                    
-                    // EQ On-Off Switch Button 
-                    Rectangle {
-                        toucharea := TouchArea { clicked =>  {
-                            eq_on = !eq_on; 
-                            EQGraphManager.draggable_positions[0].active = eq_on; 
-                            }
-                        }
-                        Text {text: eq_on ? "O" : "X"; font-size: 20px; font-weight: 20; }
-                        background: eq_on ? #c27c7c: #f8f8f8  ;                        
-                        height: parent.height; 
-                        width: self.height;
-                        border-radius: 5px; 
-                        drop-shadow-color: lightgrey;
-                        drop-shadow-offset-x: 1px;
-                        drop-shadow-offset-y: 1px;
-                        property <bool> eq_on: EQGraphManager.draggable_positions[0].active;  
-                    }
+        Rectangle { 
+            width: parent.width; 
+            height: EQGraphManager.eq_graph_height;       
+            eq_canvas := EQCanvas {x: 0; y: 0;}
+        }
 
-                    // Filter Selection Custom ComboBox - Closed -> Pop-up Filter Selection few lines below
-                    eq1_filter_select := Rectangle {
-                        width: 100px;
-                        height: parent.height;
-                        ta := TouchArea { height: parent.height; width: parent.width; clicked => { show_selection = !show_selection; } }
-                        in-out property <bool> show_selection: false; 
-                        in-out property <{str: string, type: FilterType}> selected: EQGraphManager.list-of-filters[0];  
-                        
-                        Rectangle {
-                            Text {text: selected.str; horizontal-alignment: center; vertical-alignment: center; }
-                            width: parent.width;
-                            height: parent.height;
-                            border-radius: 5px;
-                            background: show_selection ? #f8f8f8 : #f0f0f0;
-                            border-width: 1px;
-                            drop-shadow-color: lightgrey;
-                            drop-shadow-offset-x: 1px;
-                            drop-shadow-offset-y: 1px;   
-                        }
-                    }
-
-                    // Frequency Edit Box
-                    eq1_freq_edit :=Rectangle {
-                        width: 100px; 
-                        height: parent.height;
-                        border-radius: 5px; 
-                        drop-shadow-color: lightgrey;
-                        drop-shadow-offset-x: 1px;
-                        drop-shadow-offset-y: 1px;
-                        in-out property <bool> edit_freq: false;
-                        in property <bool> has-hover: le-freq.has-focus;
-                        property <float> freq: EQGraphManager.draggable_positions[0].x;
-                        ta-freq := TouchArea { height: parent.height; width: parent.width; clicked => { edit_freq = !edit_freq; } }
-                        
-                        le-freq := LineEdit {
-                            horizontal-alignment: right;
-                            height: parent.height; 
-                            width: 100px; 
-                            text: round(EQGraphManager.lin_to_f_skew(EQGraphManager.draggable_positions[0].x)*10)/10; 
-                            accepted => { EQGraphManager.draggable_positions[0].x = EQGraphManager.f_to_lin_skew(
-                                clamp(self.text.to-float(),EQGraphManager.min_freq,EQGraphManager.max_freq)); 
-                                EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[0]);
-                                EQGraphManager.set_eq_curve(0, EQGraphManager.new_curve);
-                                edit_freq = false;
-                                le-freq.clear-focus();
-                            }
-                        }
-                    }
-
-                    // Pop-up Filter Selection
-                    if eq1-filter-select.show_selection:
-                    VerticalBox {
-                        y: parent.y - 7.5*parent.height;
-                        height: 7*parent.height;
-                        width: parent.width;
-                        alignment: start;
-                        spacing: 0px;
-                        for filter in EQGraphManager.list-of-filters: 
-                            Rectangle {
-                                property <{str: string, type: FilterType}> filter_type: filter;
-                                Text {text: filter_type.str; horizontal-alignment: center; vertical-alignment: center; }
-                                width: 150px;
-                                height: parent.height/7;
-                                border-radius: 0px;
-                                background: sm.has-hover ? #eec5c5 : #f0f0f0;
-                                border-width: 1px;
-                                drop-shadow-color: lightgrey;
-                                drop-shadow-offset-x: 1px;
-                                drop-shadow-offset-y: 1px;
-                                sm := TouchArea { 
-                                    height: parent.height; 
-                                    width: parent.width; 
-                                    clicked => { 
-                                        eq1-filter-select.selected = filter_type; 
-                                        eq1-filter-select.show_selection = false; 
-                                        EQGraphManager.draggable_positions[0].filter_type = filter-type.type;
-                                        EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[0]);
-                                        EQGraphManager.set_eq_curve(0, EQGraphManager.new_curve);
-                                    } 
-                                }
-                            }
-                    }
-
-                    eq1_Q_edit :=Rectangle {
-                        width: 100px; 
-                        height: parent.height;
-                        border-radius: 5px; 
-                        drop-shadow-color: lightgrey;
-                        drop-shadow-offset-x: 1px;
-                        drop-shadow-offset-y: 1px;
-                        in-out property <bool> edit_q: false;
-                        in property <bool> has-hover: le-q.has-focus;
-                        property <float> q-value: EQGraphManager.draggable_positions[0].q-value;
-                        ta-q := TouchArea { height: parent.height; width: parent.width; clicked => { edit_q = !edit_q; } }
-                        
-                        le-q := LineEdit {
-                            horizontal-alignment: right;
-                            height: parent.height; 
-                            width: 100px; 
-                            text: round(EQGraphManager.lin_to_f_skew(EQGraphManager.draggable_positions[0].x)*10)/10; 
-                            accepted => { EQGraphManager.draggable_positions[0].q_value = 
-                                clamp(self.text.to-float(),EQGraphManager.min_q, EQGraphManager.max_q); 
-                                EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[0]);
-                                EQGraphManager.set_eq_curve(0, EQGraphManager.new_curve);
-                                edit_q = false;
-                                le-q.clear-focus();
-                            }
-                        }
-                    }
-                    Text {text: eq1_freq_edit.has-hover  ? "yes" : "no"; height: 50px; width: 100px; }
-                }
-            }
+        eq_control := EQ-CONTROL-SECTION {
+            width: parent.width;
+            height: 200px;
+        }
+        AboutSlint {
+            width: parent.width;
+            height: 50px;
         }
     }
+
+    // if EQ-CONTROL-SECTION-MANAGER.show_filter_type_selection: 
+    //         FILTER-SELECTION-POP-UP {
+    //             // x: EQ-CONTROL-SECTION-MANAGER.place_filter_selection_x - self.absolute-position.x;
+    //             // y: EQ-CONTROL-SECTION-MANAGER.place_filter_selection_y - self.absolute-position.y;
+    //     }
 }

@@ -1,13 +1,13 @@
-
-
 import { Button, HorizontalBox, VerticalBox } from "std-widgets.slint";
-global EQDesign {
+
+export global EQDesign {
     // Curve color schemes
     out property <color> eq_curve_color: red;
     out property <color> eq_curve_fill: red;
     out property <float> eq_curve_opacity: 0.2;
     out property <float> highlighted: 0.05;
-
+    out property <string> main-font: "CodeNewRoman Nerd Font";
+    out property <length> font-main-size: 17px;
     //  EQ Control Point color schemes
     out property <color> eq_control_point_color: grey;
     out property <color> eq_control_point_fill: grey;
@@ -23,14 +23,9 @@ export component Circle inherits Path{
     in property <float> cy;
     fill: EQDesign.eq_control_point_fill;
     stroke: black;
-    // viewbox-width: (parent.width / 1px) / 2;
     MoveTo {x: cx; y: cy;}
     ArcTo {radius-x: radius; radius-y: radius; x: cx+2*radius; y: cy; x-rotation: 0; large-arc: true; sweep: true;}
     ArcTo {radius-x: radius; radius-y: radius; x:  cx; y: cy; x-rotation: 0; large-arc: true; sweep: true;}
-    // MoveTo {x: cx+0.5-radius; y: cy;}
-    // ArcTo {radius-x: radius; radius-y: radius; x: cx+radius+0.5; y: cy; x-rotation: 0; large-arc: true; sweep: true;}
-    // ArcTo {radius-x: radius; radius-y: radius; x:  cx+0.5-radius; y: cy; x-rotation: 0; large-arc: true; sweep: true;}
-     
 }
 
 export struct EQControlPointData {
@@ -67,7 +62,7 @@ export component MySlider inherits Rectangle {
         border-radius: self.height / 2;
         background: touch.pressed ? #f8f: touch.has-hover ? #66f : #0000ff;
         border-color: self.background.darker(15%);
-        x: (root.width - handle.width) * (root.value - root.minimum)/(root.maximum - root.minimum);
+        x: (root.width - handle.width) * (root.value - root.minimum) / (root.maximum - root.minimum);
     }
     touch := TouchArea {
         property <float> pressed-value;
@@ -79,8 +74,10 @@ export component MySlider inherits Rectangle {
         moved => {
             if (self.enabled && self.pressed) {
                 root.value = max(root.minimum, min(root.maximum,
-                    self.pressed-value + (touch.mouse-x - touch.pressed-x) * (root.maximum - root.minimum) / (root.width - handle.width)));
-
+                    self.pressed-value 
+                    + (touch.mouse-x - touch.pressed-x) 
+                    * (root.maximum - root.minimum) 
+                    / (root.width - handle.width)));
             }
         }
     }
@@ -110,9 +107,12 @@ export struct DraggablePosition {
     active: bool,
     dist: float,
     hovered: bool,
+    ta_x: length,
+    ta_y: length,
 
     q_value: float,
-    filter_type: FilterType,
+    gain: float,
+    filter_type: {str: string, type: FilterType},
 }
 
 export global DraggableLogic {
@@ -121,17 +121,25 @@ export global DraggableLogic {
     calc_distance(x,y,mouse_x, mouse_y) => {
         sqrt( pow(x - mouse_x, 2) + pow(y - mouse_y, 2));
     }
+    callback reset_draggable(int);
+    reset_draggable(id) => {
+        EQGraphManager.draggable_positions[id].ta_x = 0px;
+        EQGraphManager.draggable_positions[id].ta_y = 0px;
+    }
+    callback push_ta_away(int);
+    push_ta_away(id) => {
+        EQGraphManager.draggable_positions[id].hovered = false;
+    }
 }
 
 export struct EQCurveData {
     svg: string,
     highlighted: bool,
-    // control_point: {freq: float, gain: float},
 }
 
 export global EQGraphManager {
 
-    in-out property <length> eq_graph_width: 500px;
+    in-out property <length> eq_graph_width: 800px;
     in-out property <length> eq_graph_height: 250px;
 
     in-out property <int> n_freq_points: 250;
@@ -146,7 +154,7 @@ export global EQGraphManager {
     in-out property <bool> has-hover;
     in property <float> db_scaling_factor: (eq_graph_height  / 1px) / max_gain ;
 
-    out property<[{str: string, type: FilterType}]> list-of-filters: 
+    out property<[{str: string, type: FilterType}]> list-of-filter-types: 
         [{str: "LowPass"  , type: FilterType.LowPass,  }, 
          {str: "HighPass" , type: FilterType.HighPass, },
          {str: "BandPass" , type: FilterType.BandPass, },
@@ -154,88 +162,85 @@ export global EQGraphManager {
          {str: "LowShelf" , type: FilterType.LowShelf, },
          {str: "HighShelf", type: FilterType.HighShelf,}
     ];    
-    // in-out property <float> gain_per_pixel:  (canvas_height / 1px) / (max_gain - min_gain);
+
+    // init draggable positions
     in-out property <[DraggablePosition]> draggable_positions: [
-        {x: 20 ,y: 20,  id: 0, active: true, selected: false, hovered: has-hover, filter_type: FilterType.PeakingEQ, q_value: 1.0},
-        {x: 50 ,y: 120, id: 1, active: true, selected: false, hovered: has-hover, filter_type: FilterType.PeakingEQ, q_value: 1.0},
-        {x: 72 ,y: 70,  id: 2, active: true, selected: false, hovered: has-hover, filter_type: FilterType.PeakingEQ, q_value: 1.0},
+        {x: 20 ,y: 20,  id: 0, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[1], q_value: 1.0},
+        {x: 50 ,y: 120, id: 1, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
+        {x: 70 ,y: 70,  id: 2, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
+        {x: 100 ,y: 70,  id: 3, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
+        {x: 132 ,y: 70,  id: 4, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
+        {x: 160 ,y: 70,  id: 5, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
+        {x: 200 ,y: 70,  id: 6, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
+        {x: 220 ,y: 70,  id: 7, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[0], q_value: 1.0},
     ];
+
     in-out property <[EQCurveData]> eq_curve_data: [
-        {svg: "M 0 50 L 125 0  L 250 110 ", highlighted: false},
-        {svg: "M 0 50 L 125 0  L 250 110 ", highlighted: false},
-        {svg: "M 0 50 L 125 0  L 250 110 ", highlighted: false}
+        {svg: "", highlighted: false},
+        {svg: "", highlighted: false},
+        {svg: "", highlighted: false},
+        {svg: "", highlighted: false},
+        {svg: "", highlighted: false},
+        {svg: "", highlighted: false},
+        {svg: "", highlighted: false},
+        {svg: "", highlighted: false}
     ];
 
     in-out property <string> eq_sum_curve;
+    pure callback update_eq_sum_curves();
+
     in-out property  <string> new_curve;
     callback set_eq_curve(int, string);
     set_eq_curve(id, svg) => {
         eq_curve_data[id].svg = svg;
     }
-    // in-out property <[EQCurveData]> eq_curves;
     
-    // pure callback activate_filter(int);
-    // pure callback deactivate_filter(int);
-    // in-out property <float> mx;
-    // in-out property <float> my;
-    // out property <float> current_f;
-    // out property <float> current_g;
-    // in-out property <int> highlighted;
-    // in-out property <string> selected: "False";
-    // highlight_filter(mouse-x, mouse-y) -> filter index 
-    pure callback highlight_filter(float, float) -> int;
+    // pure callback highlight_filter(float, float) -> int;
     callback map_mouse_coords(float, float, length, length) ;
     callback set_selected(string);
-    // set_selected(sel) => {selected = sel;}
-    // map mouse coords from canvas to interpretable values for the graph
-    // pure callback get_filter_selected_filter_id(float,float) -> int;
-    // map_mouse_coords(mxc,myc,width,height) => 
-    //     {        
-    //         mx = clamp(((mxc ) / 2),0,width/2px);
-    //         my = clamp((height /1px - myc ) / 1, 0, height/1px);
-    //     }
-
+    
     // 10.0f32.powf((x - x0) * (y1.log10() - y0.log10()) / (x1 - x0) + y0.log10())
     pure callback mx_to_f(float) -> float;
     mx_to_f(mx) => {
          pow( 10.0, ((mx - 0) * (log(max_freq,10) - log(min_freq,10)) / (eq_graph_width /1px - 0) + log(min_freq,10)) )  
     }     
-    // 10.0f32.powf( (x - x0) * (y1.log10() - y0.log10()) / (x1 - x0) + y0.log10() )
+    
     //   (y.log10() - y0.log10()) * (x1 - x0) / (y1.log10() - y0.log10()) + x0
     callback f_to_mx(float) -> float;
     f_to_mx(f) => {
         (log(f,10.0) - log(min_freq,10.0)) * (eq_graph_width /1px - 0) / (log(max_freq,10.0) - log(min_freq, 10)) + 0
     }
 
-    // pub fn lin_to_f_skew(start: f32, end: f32, num_points: usize, skew_f: f32, x: f32) -> f32 {
-    //     let position = x / (num_points as f32 - 1.0);
-    //     let skewed_position = position.powf(1.0/skew_f);
-    //     start + (end - start) * skewed_position
-    // }
     pure callback lin_to_f_skew(float) -> float;
     lin_to_f_skew(x) => {
         min_freq + (max_freq - min_freq) * pow(x / (eq_graph_width/1px - 1), 1.0 / skew_factor)   
     }
 
-    // pub fn f_to_lin_skew(start: f32, end: f32, num_points: usize, skew_f: f32, y: f32) -> f32 {
-    //     let position = (y - start) / (end - start);
-    //     let skewed_position = position.powf(skew_f);
-    //     (num_points as f32 - 1.0) * skewed_position
-    // }
+
     pure callback f_to_lin_skew(float) -> float;
     f_to_lin_skew(y) => {
         (eq_graph_width/1px - 1) * pow((y - min_freq) / (max_freq - min_freq), skew_factor)
     }
 
-    // pure callback lin_to_f(float,float,float,float,float) -> float;
-    // f_to_lin(y0, y1, x0, x1, y) -> f32 {
-    //     (log(y,10) - y0.log10()) * (x1 - x0) / (y1.log10() - y0.log10()) + x0
-    // }
-    // callback my_to_g(length);
-    // my_to_g(height) => {
-    //     // gain = ((canvas_height / 1px - y) / 2) * gain_per_pixel;
-    //     current_g = (my - height / 2px) / (height / 2px) * (max_gain);
-    // }
+    callback selected_draggable(int, int);
+    selected_draggable(id, id2) => {
+        if id == id2 {
+            draggable_positions[id].selected = true;   
+            eq_curve_data[id].highlighted = true;   
+            
+        } else {
+            draggable_positions[id].selected = false;
+            eq_curve_data[id].highlighted = false;
+            
+        }
+    }
+
+   
+
+    callback mx_to_gain(float) -> float;
+    mx_to_gain(y_g) => {
+        (EQGraphManager.eq_graph_height/2px - y_g) * (2 * EQGraphManager.db_scaling_factor);
+    }
 }
 
 export component EQCurve {
@@ -260,7 +265,13 @@ export component EQCurve {
 
 
 export component Draggable inherits Rectangle {
+  
     
+
+        
+    callback reset_x_y();
+    callback push_ta_away();
+
     // position variables
     x: self.center_x * 1px - self.width  / 2 ;
     y: self.center_y * 1px - self.height / 2;
@@ -312,6 +323,8 @@ export global EQCanvasLogic{
 }
     // pure function get_nearest_filter2(draggables: [DraggablePosition],mx: float,my: float) -> int 
 export component EQCanvas inherits Rectangle {
+    // width: parent.width;
+    // height: parent.height;
     // min-width: 600px;
     // min-height: 500px;
     width: EQGraphManager.eq_graph_width;
@@ -327,178 +340,186 @@ export component EQCanvas inherits Rectangle {
     in-out property <length> scroll_x;
     in-out property <length> scroll_y: 0;  
     
+
     // look and feel
     
-    // callback set_selected(int);
-    // set_selected(id) => {selected = id}
-    VerticalBox {
-    Rectangle {    
-        width: parent.width;
-        height: parent.height;
-        background: lightgrey;
-            
-        in property <length> drag1_x: ta.mouse-x;
-        in property <length> drag1_y: ta.mouse-x;
-      
-        ta := TouchArea {
+    VerticalLayout {
+
+        Rectangle {    
             width: parent.width;
             height: parent.height;
-            property <length> pressed-value-x;
-            property <length> pressed-value-y;
-            
-            pointer-event(event) => {
+            background: #c1f3ff;
+                
+            in property <length> drag1_x: ta.mouse-x;
+            in property <length> drag1_y: ta.mouse-x;
+        
+            ta := TouchArea {
+                width: 100%;//parent.width;
+                height: 100%;//parent.height;
+                property <length> pressed-value-x;
+                property <length> pressed-value-y;
+                
+                in-out property <bool> moveds;
+                pointer-event(event) => {
 
-                // Check Mouse input left click
-                if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
-                   
-                    // EQ1
-                    EQGraphManager.draggable_positions[0].dist = DraggableLogic.calc_distance(
-                        EQGraphManager.draggable_positions[0].x, 
-                        EQGraphManager.draggable_positions[0].y, 
-                        ta.mouse-x / 1px, 
-                        ta.mouse-y / 1px);
-                    // EQ2
-                    EQGraphManager.draggable_positions[1].dist = DraggableLogic.calc_distance(
-                        EQGraphManager.draggable_positions[1].x, 
-                        EQGraphManager.draggable_positions[1].y, 
-                        ta.mouse-x / 1px, 
-                        ta.mouse-y / 1px);
-                    // EQ3        
-                    EQGraphManager.draggable_positions[2].dist = DraggableLogic.calc_distance(
-                        EQGraphManager.draggable_positions[2].x, 
-                        EQGraphManager.draggable_positions[2].y, 
-                        ta.mouse-x / 1px, 
-                        ta.mouse-y / 1px);
-                    
-                    // Get the nearest filter 
-                    selected_draggable = DraggableLogic.get_nearest_filter(EQGraphManager.draggable_positions);
-                    
-                    // Set nearest filter as selected
-                    if (selected_draggable == 0) {
-                        EQGraphManager.draggable_positions[0].selected = true;
-                        EQGraphManager.eq_curve_data[0].highlighted = true;            
-                        pressed-value-x = EQGraphManager.draggable_positions[0].x * 1px;
-                        pressed-value-y = EQGraphManager.draggable_positions[0].y * 1px;
-                        EQGraphManager.draggable_positions[1].selected = false;
-                        EQGraphManager.draggable_positions[2].selected = false;
-                        EQGraphManager.eq_curve_data[1].highlighted = false;
-                        EQGraphManager.eq_curve_data[2].highlighted = false;
-                    } else if (selected_draggable == 1) {
-                        EQGraphManager.draggable_positions[1].selected = true;      
-                        EQGraphManager.eq_curve_data[1].highlighted = true;
-                        pressed-value-x = EQGraphManager.draggable_positions[1].x * 1px;
-                        pressed-value-y = EQGraphManager.draggable_positions[1].y * 1px;
-                        EQGraphManager.draggable_positions[0].selected = false;
-                        EQGraphManager.draggable_positions[2].selected = false;     
-                        EQGraphManager.eq_curve_data[0].highlighted = false;
-                        EQGraphManager.eq_curve_data[2].highlighted = false; 
-                    } else if (selected_draggable == 2) {
-                        EQGraphManager.draggable_positions[2].selected = true; 
-                        EQGraphManager.eq_curve_data[2].highlighted = true;
-                        pressed-value-x = EQGraphManager.draggable_positions[2].x * 1px;
-                        pressed-value-y = EQGraphManager.draggable_positions[2].y * 1px;
-                        EQGraphManager.draggable_positions[0].selected = false;
-                        EQGraphManager.draggable_positions[1].selected = false;
-                        EQGraphManager.eq_curve_data[0].highlighted = false;
-                        EQGraphManager.eq_curve_data[1].highlighted = false;        
+                    if (event.kind == PointerEventKind.move) {
+                        selected_draggable = DraggableLogic.get_nearest_filter(EQGraphManager.draggable_positions);
+                        EQGraphManager.selected_draggable(selected_draggable, selected_draggable);
+                        moveds = true;
+                    } else {
+                        moveds = false;
                     }
 
-                } else if event.kind == PointerEventKind.up {
-                    // EQGraphManager.draggable_positions[0].selected = false;
-                    // EQGraphManager.draggable_positions[1].selected = false;
-                    // EQGraphManager.draggable_positions[2].selected = false;
-                }
-            }
-         
-            moved => {
-                if (self.enabled && self.pressed) {
+                    // Check Mouse input left click
+                    if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
                     
-                    if EQGraphManager.draggable_positions[0].selected && EQGraphManager.draggable_positions[0].active {
-                        EQGraphManager.draggable_positions[0].x = clamp((pressed-value-x + (ta.mouse-x - ta.pressed-value-x)) / 1px, 0, parent.width / 1px);
-                        EQGraphManager.draggable_positions[0].y = clamp((pressed-value-y + (ta.mouse-y - ta.pressed-value-y)) / 1px, 0, parent.height / 1px);
-                        // EQGraphManager.eq_curve_data[0].svg = EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[0]);
-                        EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[0]);
-                        EQGraphManager.set_eq_curve(0, EQGraphManager.new_curve);
+                        // EQ0
+                        EQGraphManager.draggable_positions[0].dist = DraggableLogic.calc_distance(
+                            EQGraphManager.draggable_positions[0].x, 
+                            EQGraphManager.draggable_positions[0].y, 
+                            ta.mouse-x / 1px, 
+                            ta.mouse-y / 1px);
+                        // EQ1
+                        EQGraphManager.draggable_positions[1].dist = DraggableLogic.calc_distance(
+                            EQGraphManager.draggable_positions[1].x, 
+                            EQGraphManager.draggable_positions[1].y, 
+                            ta.mouse-x / 1px, 
+                            ta.mouse-y / 1px);
+                        // EQ2        
+                        EQGraphManager.draggable_positions[2].dist = DraggableLogic.calc_distance(
+                            EQGraphManager.draggable_positions[2].x, 
+                            EQGraphManager.draggable_positions[2].y, 
+                            ta.mouse-x / 1px, 
+                            ta.mouse-y / 1px);
+                        // EQ3        
+                        EQGraphManager.draggable_positions[3].dist = DraggableLogic.calc_distance(
+                            EQGraphManager.draggable_positions[3].x, 
+                            EQGraphManager.draggable_positions[3].y, 
+                            ta.mouse-x / 1px, 
+                            ta.mouse-y / 1px);
+                        // EQ4        
+                        EQGraphManager.draggable_positions[4].dist = DraggableLogic.calc_distance(
+                            EQGraphManager.draggable_positions[4].x, 
+                            EQGraphManager.draggable_positions[4].y, 
+                            ta.mouse-x / 1px, 
+                            ta.mouse-y / 1px);
+                        // EQ5        
+                        EQGraphManager.draggable_positions[5].dist = DraggableLogic.calc_distance(
+                            EQGraphManager.draggable_positions[5].x, 
+                            EQGraphManager.draggable_positions[5].y, 
+                            ta.mouse-x / 1px, 
+                            ta.mouse-y / 1px);
+                        // EQ6        
+                        EQGraphManager.draggable_positions[6].dist = DraggableLogic.calc_distance(
+                            EQGraphManager.draggable_positions[6].x, 
+                            EQGraphManager.draggable_positions[6].y, 
+                            ta.mouse-x / 1px, 
+                            ta.mouse-y / 1px);
+                        // EQ7        
+                        EQGraphManager.draggable_positions[7].dist = DraggableLogic.calc_distance(
+                            EQGraphManager.draggable_positions[7].x, 
+                            EQGraphManager.draggable_positions[7].y, 
+                            ta.mouse-x / 1px, 
+                            ta.mouse-y / 1px);
+                        
+                        // Get the nearest filter 
+                        selected_draggable = DraggableLogic.get_nearest_filter(EQGraphManager.draggable_positions);
+                        
+                        pressed-value-x = EQGraphManager.draggable_positions[selected_draggable].x * 1px;
+                        pressed-value-y = EQGraphManager.draggable_positions[selected_draggable].y * 1px;   
+                        
+                        // Set other filters as unselected
+                        EQGraphManager.selected_draggable(0, selected_draggable);
+                        EQGraphManager.selected_draggable(1, selected_draggable);
+                        EQGraphManager.selected_draggable(2, selected_draggable);
+                        EQGraphManager.selected_draggable(3, selected_draggable);
+                        EQGraphManager.selected_draggable(4, selected_draggable);
+                        EQGraphManager.selected_draggable(5, selected_draggable);
+                        EQGraphManager.selected_draggable(6, selected_draggable);
+                        EQGraphManager.selected_draggable(7, selected_draggable);
 
-                    } else if EQGraphManager.draggable_positions[1].selected && EQGraphManager.draggable_positions[1].active {
-                        EQGraphManager.draggable_positions[1].x = clamp((pressed-value-x + (ta.mouse-x - ta.pressed-value-x)) / 1px, 0, parent.width / 1px);
-                        EQGraphManager.draggable_positions[1].y = clamp((pressed-value-y + (ta.mouse-y - ta.pressed-value-y)) / 1px, 0, parent.height / 1px);
-                        // EQGraphManager.eq_curve_data[1].svg = EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[1]);
-                        EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[1]);
-                        EQGraphManager.set_eq_curve(1, EQGraphManager.new_curve);
+                        
 
-                    } else if EQGraphManager.draggable_positions[2].selected && EQGraphManager.draggable_positions[2].active {
-                        EQGraphManager.draggable_positions[2].x = clamp((pressed-value-x + (ta.mouse-x - ta.pressed-value-x)) / 1px, 0, parent.width / 1px);
-                        EQGraphManager.draggable_positions[2].y = clamp((pressed-value-y + (ta.mouse-y - ta.pressed-value-y)) / 1px, 0, parent.height / 1px);
-                        // EQGraphManager.eq_curve_data[2].svg = EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[2]);
-                        EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[2]);
-                        EQGraphManager.set_eq_curve(2, EQGraphManager.new_curve);
+                    } else if event.kind == PointerEventKind.up {
                     }
-                }                 
-            }
+                }
             
-            in-out property <length> scroll_old;
-            in-out property <float> q_inc;
-
-            scroll-event(per) => {
-
-                
-                // scroll_x = per.delta-x -;
-                scroll_old =  per.delta-y; //; - scroll_old;
-                q_inc = ((scroll_old / 60) /10) / 1px;
-                
-                if EQGraphManager.draggable_positions[0].selected {
-                    EQGraphManager.draggable_positions[0].q_value += q_inc;
-                    // EQGraphManager.eq_curve_data[0].svg = EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[0]);
-                    EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[0]);
-                    EQGraphManager.set_eq_curve(0, EQGraphManager.new_curve);
-                } else
-                if EQGraphManager.draggable_positions[1].selected {
-                    EQGraphManager.draggable_positions[1].q_value += q_inc;
-                    EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[1]);
-                    EQGraphManager.set_eq_curve(1, EQGraphManager.new_curve);
-                } else
-                if EQGraphManager.draggable_positions[2].selected {
-                    EQGraphManager.draggable_positions[2].q_value += q_inc;
-                    // EQGraphManager.eq_curve_data[2].svg = EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[2]);
-                    EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[2]);
-                    EQGraphManager.set_eq_curve(2, EQGraphManager.new_curve);
+                moved => {
+                    if (self.enabled && self.pressed) {
+                        
+                        if selected_draggable == -1 {
+                            return;
+                        }
+                        EQGraphManager.draggable_positions[selected_draggable].x = clamp((pressed-value-x + (ta.mouse-x - ta.pressed-value-x)) / 1px, 0, parent.width / 1px);
+                        EQGraphManager.draggable_positions[selected_draggable].y = clamp((pressed-value-y + (ta.mouse-y - ta.pressed-value-y)) / 1px, 0, parent.height / 1px);
+                        EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[selected_draggable]);
+                        EQGraphManager.draggable_positions[selected_draggable].gain =  30 * (125  - EQGraphManager.draggable_positions[selected_draggable].y) /125 ;
+                        EQGraphManager.set_eq_curve(selected_draggable, EQGraphManager.new_curve); 
+                    }                 
                 }
                 
-                EventResult.accept   ;
-            }
-            // TESTPATH {width: parent.width; height: parent.height;
+                in-out property <length> scroll_old;
+                in-out property <float> q_inc;
+
+                scroll-event(per) => {
+                    
+                
+                    scroll_old =  per.delta-y; 
+                    q_inc = ((scroll_old / 60) /10) / 1px;
+                    
+                    if selected_draggable == -1 {
+                        return EventResult.reject;
+                    }
+
+                    EQGraphManager.draggable_positions[selected_draggable].q_value += q_inc;
+                    EQGraphManager.draggable_positions[selected_draggable].q_value = clamp(EQGraphManager.draggable_positions[selected_draggable].q_value, EQGraphManager.min_q, EQGraphManager.max_q);
+                    EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[selected_draggable]);
+                    EQGraphManager.set_eq_curve(selected_draggable, EQGraphManager.new_curve);
+                    
+                    EventResult.accept   ;
+                }
+
             
+                double-clicked => {
+                    
+                    if selected_draggable == -1 {return;}
+                    EQGraphManager.draggable_positions[selected_draggable].active = !EQGraphManager.draggable_positions[selected_draggable].active;
+                    EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[selected_draggable]);
+
+                }
+
+                
+                
             }
             Path {
+                width: 100%;
+                height: 100%; 
                 viewbox-x: 0;
                 viewbox-y: 0;
-                viewbox-height: 100;
+                viewbox-height: EQGraphManager.eq_graph_height/2px;
+                viewbox-width: EQGraphManager.eq_graph_width/2px;
                 clip: true;
-                viewbox-width: (parent.width / 1px) / 2;
                 commands: EQGraphManager.eq_sum_curve;
                 stroke: black;
                 stroke-width: 1.5px;
-                fill: #8884c3; //red;
-                // opacity: 0.1;
+                fill: #8884c3;
             }
             for eq_curve in EQGraphManager.eq_curve_data: 
                 Path {  
-                    viewbox-height: 100;
-                    viewbox-width: (parent.width / 1px) / 2;
+                    width: 100%;
+                    height: 100%;                    
+                    viewbox-height: EQGraphManager.eq_graph_height/2px;
+                    viewbox-width: EQGraphManager.eq_graph_width/2px;
                     viewbox-x: 0;
                     viewbox-y: 0;
                     clip: true;
                     commands: eq_curve.svg;
                     fill: eq_curve.highlighted?  #c38484 : transparent;
-                    // opacity: eq_curve.highlighted? 0.1 : 0.1;
-                    stroke: eq_curve.highlighted? black : #ab8b8b ;
+                    opacity: eq_curve.highlighted? 0.2 : 0.2;
+                    stroke: eq_curve.highlighted? black : #3c3030 ;
                     stroke-width: eq_curve.highlighted? 1.5px : 1px;
-                    
-                    // opacity: 0; //eq_curve.highlighted ? EQDesign.highlighted : EQDesign.eq_curve_opacity;
                 }
-            
-
+        
             for dp in EQGraphManager.draggable_positions: 
                 Draggable {
                     clip: true;
@@ -508,24 +529,24 @@ export component EQCanvas inherits Rectangle {
                     id: dp.id;
                     selected: dp.selected;
                     hovered: dp.hovered;
+                  
             }
-        
-      
-        
-    }
-    // HorizontalBox {
-    //     Text { text: selected_draggable;}
-    //     Text { text: ta.scroll_old /1px;}
-    //     Text { text: ta.q_inc;}
-    //     // Text { text: distances[2];}
-    //     // Text { text: dragabble1.selected ? "true" : "false";}
-    //     // Text { text: dragabble2.selected ? "true" : "false";}
-    //     // Text { text: dragabble3.selected ? "true" : "false";}
-    //     Text { text: EQGraphManager.draggable_positions[0].x ;}
-    //     Text { text: EQGraphManager.draggable_positions[0].y ;}
-    
-    // }
+            
+            if false: 
+                Path {
+                    width: 100%;
+                    height: 100%;
+                    viewbox-height: EQGraphManager.eq_graph_height/2px;
+                    viewbox-width: EQGraphManager.eq_graph_width/2px;
+                    commands: "M -1 100.5 L \{ EQGraphManager.eq_graph_width/2 /1px +1} 0";
+                    stroke: black;
+                    stroke-width: 1.5px;
+                }
 
+            Text {
+                // text: "MY: \{EQGraphManager.draggable_positions[selected_draggable].gain}";
+                text: ta.moveds? "Moved" : "Not Moved";
+            }      
+        }
     }
-    
 }
