@@ -1,5 +1,5 @@
 
-import {VerticalBox, HorizontalBox, TabWidget, Button, TextEdit, ListView, ComboBox, LineEdit} from "std-widgets.slint";
+import {VerticalBox, HorizontalBox, TabWidget, Button, TextEdit, ListView, ComboBox, LineEdit, Slider} from "std-widgets.slint";
 import {EQCanvasLogic,EQCurveData, EQGraphManager, DraggableLogic, FilterType, EQDesign} from "eq_canvas.slint";
 
 
@@ -16,32 +16,49 @@ export global EQ_CONTROL_SECTION_MANAGER {
     in-out property <bool> show_filter_type_selection: false;
     in-out property <length> place_filter_selection_x;
     in-out property <length> place_filter_selection_y;
-
+    in-out property <float> q-init-value: 1.0;
+    callback update_freq(int);
+    in-out property <[float]> freqs;
+    in-out property <float> freq;
+    update_freq(id) => {
+        freqs[id] = round(EQGraphManager.lin_to_f_skew(EQGraphManager.draggable_positions[id].x)*10)/10;
+    }    // callback()
 }
 
 
 export component ON_OFF_SWITCH {
-    
+    callback update();
+    // update() => {
+
+        // EQGraphManager.draggable_positions[id].active = !EQGraphManager.draggable_positions[id].active;
+        // EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[id]);
+        // EQGraphManager.set_eq_curve(id, EQGraphManager.new_curve);
+    // }
     in-out property <int> id;
     in-out property <bool> eq_on: EQGraphManager.draggable_positions[id].active;  
+    Rectangle {background: #9ba8d0;}
     Rectangle {
         height: parent.height; 
         width: parent.height;    
         border-radius: parent.height/2;
         border-width: 10px;  
-        toucharea := TouchArea { clicked =>  {
-            EQ-CONTROL-SECTION-MANAGER.filter_id = id;
-            eq_on = !eq_on; 
-            EQGraphManager.draggable_positions[id].active = eq_on; 
-            EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[id]);
+        background: #9ba8d0;
+        toucharea := TouchArea { 
+            clicked =>  {
+                EQ-CONTROL-SECTION-MANAGER.filter_id = id;
+                eq_on = !eq_on; 
+                EQGraphManager.draggable_positions[id].selected = 
+                    EQGraphManager.draggable_positions[id].selected && eq_on; 
+                EQGraphManager.draggable_positions[id].active = eq_on; 
+                EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[id]);
             }
         }
         Text {text: eq_on ? "O" : "X"; font-size: 26px; font-weight: 900; font-family: EQDesign.main-font;}
-        background: eq_on? #71cebb: #9ba8d0; //eq_on ? #76ce71: #9ba8d0  ;                        
+        // background: eq_on? #71cebb: #9ba8d0; //eq_on ? #76ce71: #9ba8d0  ;                        
         
         // border-radius: 5px;
         border-color: eq_on? #71cebb: #9ba8d0; //#9ba8d0; 
-        opacity: eq_on? 1.0: 0.1;
+        // opacity: eq_on? 1.0: 0.1;
         drop-shadow-color: #353c51;
         drop-shadow-offset-x: 1px;
         drop-shadow-offset-y: 1px;
@@ -139,6 +156,18 @@ export component FILTER_TYPE_SELECTION_BOX {
 export component FREQUENCY_EDIT_BOX {
     in-out property <int> id;
     in-out property <bool> eq_on;
+    in-out property <float> temp_freq;
+    callback update_freq();
+    update_freq() => {
+        
+        temp_freq = round(10.0*EQGraphManager.lin_to_f_skew( EQGraphManager.draggable_positions[id].x)/10.0);
+        if temp_freq > 10000.0 {
+            ti-freq.text = round(temp_freq/100.0)/10 + " kHz";
+        } else {
+            ti-freq.text = temp_freq + " Hz";
+        }
+
+    }
     Rectangle {
         width: parent.width; 
         height: parent.height;
@@ -151,25 +180,29 @@ export component FREQUENCY_EDIT_BOX {
         in-out property <bool> edit_freq: false;
         in property <bool> has-hover: ti-freq.has-focus;
         property <float> freq: EQGraphManager.draggable_positions[id].x;
-        ta-freq := TouchArea { height: parent.height; width: parent.width; clicked => { edit_freq = !edit_freq; } }
+        
+        // ta-freq := TouchArea { height: parent.height; width: parent.width; clicked => { edit_freq = !edit_freq; } }
         
         ti-freq := TextInput {
             
-            horizontal-alignment: center;
+            horizontal-alignment: right;
             vertical-alignment: center;
             height: parent.height; 
             font-family: EQDesign.main-font;
             font-size: EQDesign.font-main-size;
             width: parent.width; 
             text: round(EQGraphManager.lin_to_f_skew(EQGraphManager.draggable_positions[id].x)*10)/10 + " Hz"; 
-            accepted => { EQGraphManager.draggable_positions[id].x = EQGraphManager.f_to_lin_skew(
+            // text: EQ-CONTROL-SECTION-MANAGER.freq; 
+            accepted => { 
+                EQGraphManager.draggable_positions[id].x = EQGraphManager.f_to_lin_skew(
                 clamp(self.text.to-float(),EQGraphManager.min_freq,EQGraphManager.max_freq)); 
                 EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[id]);
                 EQGraphManager.set_eq_curve(id, EQGraphManager.new_curve);
+                // update_freq();
                 edit_freq = false;
                 ti-freq.clear-focus();
             }
-            TouchArea {width: parent.width; height: parent.height; clicked => {ti-freq.focus();}}
+            ta_freq := TouchArea {width: parent.width; height: parent.height; clicked => {ti-freq.focus();}}
         }
     }
 }
@@ -182,10 +215,12 @@ export component FREQUENCY_EDIT_BOX {
 export component GAIN_EDIT_BOX {
     in-out property <int> id;
     in-out property <bool> eq_on;
+    callback update_gain();
+    update_gain() => {ti-gain.text = EQGraphManager.draggable_positions[id].gain + " dB";}
     callback gain_to_mx(float) -> float;
-    gain_to_mx(gain) => {
-        EQGraphManager.eq_graph_height/2px - (2.0 * EQGraphManager.db_scaling_factor) * gain;
-    }
+    // gain_to_mx(gain) => {
+    //     EQGraphManager.eq_graph_height/2px - (2.0 * EQGraphManager.db_scaling_factor) * gain;
+    // }
     callback mx_to_gain(float) -> float;
     mx_to_gain(mx) => {
         (EQGraphManager.eq_graph_height/2px - mx) / (EQGraphManager.db_scaling_factor);
@@ -201,11 +236,10 @@ export component GAIN_EDIT_BOX {
         drop-shadow-offset-x: 1px;
         drop-shadow-offset-y: 1px;
         in-out property <bool> edit_gain: false;
-        in property <bool> has-hover: te-gain.has-focus;
-        property <float> gain: EQGraphManager.draggable_positions[id].y;
-        ta-gain := TouchArea { height: parent.height; width: parent.width; clicked => { edit_gain = !edit_gain; } }
-        
-        te-gain := TextInput {
+        in property <bool> has-hover: ta_gain.has-hover;
+        property <float> gain: EQGraphManager.draggable_positions[id].gain;
+         
+        ti-gain := TextInput {
             vertical-alignment: center;
             horizontal-alignment: center;
             height: parent.height; 
@@ -213,15 +247,23 @@ export component GAIN_EDIT_BOX {
             font-family: EQDesign.main-font;
             font-size: EQDesign.font-main-size;
             text: EQGraphManager.draggable_positions[id].gain  + " dB"; 
-            accepted => { self.text = 
-                gain_to_mx(clamp(self.text.to-float(),EQGraphManager.min_gain, EQGraphManager.max_gain)); 
-                EQGraphManager.draggable_positions[id].y = gain_to_mx(self.text.to-float());
+            accepted => { 
+                // self.text = 
+                // gain_to_mx(clamp(self.text.to-float(),EQGraphManager.min_gain, EQGraphManager.max_gain)); 
+                // EQGraphManager.draggable_positions[id].y = gain_to_mx(self.text.to-float());
+                EQGraphManager.draggable_positions[id].gain = clamp(self.text.to-float() ,EQGraphManager.min_gain, EQGraphManager.max_gain);
+                EQGraphManager.draggable_positions[id].y =  EQGraphManager.gain_to_mx(EQGraphManager.draggable_positions[id].gain);
+                
                 EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[id]);
                 EQGraphManager.set_eq_curve(id, EQGraphManager.new_curve);
                 edit_gain = false;
-                te-gain.clear-focus();
+                ti-gain.clear-focus();
             }
         }
+        ta_gain := TouchArea {width: parent.width; height: parent.height; clicked => {ti-gain.focus();}}
+        // Text {x: parent.x + 10px; text: "Gain: \{EQGraphManager.draggable_positions[id].gain}"; font-size: 40px;}
+        // Text {x: parent.x + 10px; text: "Y: \{EQGraphManager.draggable_positions[id].y}"; font-size: 40px;}
+       
     }
 }
 
@@ -230,9 +272,15 @@ export component Q_EDIT_BOX {
     in-out property <bool> eq_on;
     in-out property <int> id;
     in-out property <bool> edit_q: false;
-        in property <bool> has-hover: ti.has-focus;
-        property <float> q-value: EQGraphManager.draggable_positions[id].q-value;
-        
+    in property <bool> has-hover: ti.has-focus;
+    property <float> q-value: EQGraphManager.draggable_positions[id].q-value;
+    // property <float> last_value: EQGraphManager.q-test;
+    // callback update_q <=> ti.accepted;
+    callback update_q();
+    update_q() => {ti.text = " Q: " + round(10*EQGraphManager.draggable_positions[id].q-value) / 10;}
+    // update_q(q) => {
+    //     q-value = q;
+    // }    
     Rectangle {
         width: parent.width; 
         height: parent.height;
@@ -242,24 +290,32 @@ export component Q_EDIT_BOX {
         drop-shadow-color: #353c51;
         drop-shadow-offset-x: 1px;
         drop-shadow-offset-y: 1px;  
-        ta-q := TouchArea { height: parent.height; width: parent.width; clicked => { edit_q = !edit_q; } }
         
-        ti := TextInput {
-            text: "Q: " + EQGraphManager.draggable_positions[id].q_value; 
-            font-family: EQDesign.main-font;
-            font-size: EQDesign.font-main-size;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            selection-background-color: transparent;
-            accepted => { self.text = 
-                clamp(self.text.to-float(),EQGraphManager.min_q, EQGraphManager.max_q); 
-                EQGraphManager.draggable_positions[id].q_value = self.text.to-float();
-                EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[id]);
-                EQGraphManager.set_eq_curve(id, EQGraphManager.new_curve);
-                edit_q = false;
-                self.clear-focus();
+        HorizontalLayout {   
+            // t := Text {width: 20px; text: "Q: "; font-family: EQDesign.main-font; font-size: EQDesign.font-main-size; vertical-alignment: center; horizontal-alignment: left;}  
+            ti := TextInput {
+                
+                text:  " Q: " + q-value; 
+                // text: EQGraphManager.draggable_positions[id].q_value; 
+                font-family: EQDesign.main-font;
+                font-size: EQDesign.font-main-size;
+                horizontal-alignment: left;
+                vertical-alignment: center;
+                selection-background-color: transparent;
+                
+                accepted => { 
+                    EQGraphManager.draggable_positions[id].q_value = self.text.to-float();
+                    EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[id]);
+                    // self.text = EQGraphManager.draggable_positions[id].q_value;
+                }
+                cursor-position-changed => {
+
+                }
+                
+                
             }
-        }
+            ta-q := TouchArea { height: parent.height; width: parent.width;  }
+    }
         // le-q := LineEdit {
             
         //     horizontal-alignment: left;
@@ -273,44 +329,46 @@ export component Q_EDIT_BOX {
 
 export component FILTER_CONTROL {
     in-out property <int> id;
+    callback update_q_ui <=> qe_box.update_q;
+    callback update_freq_ui <=> fe_box.update_freq;
+    callback update_gain_ui <=> ge_box.update_gain;
+    callback update_on_switch <=> on-switch.update;
+    
     HorizontalLayout {
         alignment: center;
         height: 40px;
-        max-width: 500px;
-        padding-left: 20px;
+        max-width: 800px;
+        padding-left: 12px;
         spacing: 20px;
-        on-switch := ON-OFF-SWITCH {id: id;height: 40px; width: 40px;}
-        // Rectangle {
-        //     width: 360px;
-        //     height: 40px;
-        //     background:  #9ba8d0;
-        //         drop-shadow-color: #353c51;
-        //         drop-shadow-offset-x: 1px;
-        //         drop-shadow-offset-y: 1px;
-        //         opacity: on-switch.eq_on? 1.0 : 0.1; 
-            
         HorizontalLayout {
-            
-                // width: 40px;
-                // height: 40px;
-                            
-             
+            alignment: center;
+            width: 60px;
             height: 40px;
-            width: 460px;
-            // alignment: start;
-            
-            spacing: 0px;
-            
-            fst_box := FILTER_TYPE_SELECTION_BOX {id: id; width: 100px; height: 40px; eq_on: on-switch.eq_on;}
-            fre_box := FREQUENCY_EDIT_BOX {id: id; height: 40px; width: 80px; eq_on: on-switch.eq_on;}
-            ge_box := GAIN_EDIT_BOX {id: id; height: 40px; width: 60px; eq_on: on-switch.eq_on;}
-            Q_EDIT_BOX {id: id; height: 40px; width: 60px;  eq_on: on-switch.eq_on;}
-           
+            Rectangle {on-switch := ON-OFF-SWITCH {id: id;height: 40px; width: 60px;}
+                background: #9ba8d0; opacity: EQGraphManager.draggable_positions[id].active? 1.0: 0.1;
+                
+            }
         }
-    // }
+        HorizontalLayout {
+            Rectangle {
+                
+                max-width: 500px;
+                background: #9ba8d0;
+                opacity: EQGraphManager.draggable_positions[id].active? 1.0: 0.1;
+            height: 40px;
+            // width: 460px;
+            }
+            // spacing: 0px;
+            
+            fs_box := FILTER_TYPE_SELECTION_BOX {id: id; width: 85px; height: 40px; eq_on: EQGraphManager.draggable_positions[id].active;}
+            fe_box := FREQUENCY_EDIT_BOX {id: id; width: 80px;height: 40px;  eq_on: EQGraphManager.draggable_positions[id].active;}
+            ge_box := GAIN_EDIT_BOX {id: id; width: 70px;height: 40px; eq_on: EQGraphManager.draggable_positions[id].active;}
+            qe_box := Q_EDIT_BOX {id: id; width: 60px; height: 40px; eq_on: EQGraphManager.draggable_positions[id].active; }
+        
+        }       
     }
-
 }
+
 
 export component EQ_CONTROL_SECTION {
     Rectangle {
@@ -396,3 +454,57 @@ component Component inherits Window{
     height: 600px;
     MultiTapWidget {}   
 } 
+
+
+global Shared {
+    in-out property <float> value: 0;
+}
+
+export component Component2  {
+    width: 800px;
+    height: 600px;
+    
+    callback updateText(string);
+    updateText(input) => { txt.text = input;}
+    in-out property <float> px;
+           
+        // callback accept <=> ti.accepted;
+        r := Rectangle {
+             background: #9ba8d0;
+            width: 200px;
+            height: 80px;
+
+            
+            txt := Text {width: parent.width; height: parent.height; text: px;} 
+            
+            
+            pop := PopupWindow {
+                callback accept <=> ti.accepted;
+                Rectangle {
+                    width: 200px;
+                    height: 80px;
+                    background: #b8a228;
+                }
+                width: 200px;
+                height: 80px;
+                VerticalLayout {
+                    ti:= TextInput {width: parent.width; height: parent.height; text: px; 
+                        accepted => {px = self.text.to-float(); txt.text = px; pop.close();}
+                        }   
+                }
+                close-on-click: false;
+                
+            } 
+            ta := TouchArea {width: parent.width; height: parent.height; clicked => {pop.show();}} 
+            
+        }
+}
+
+component Component inherits Window {
+    VerticalLayout {
+        s := Slider {width: 200px; height: 80px; minimum: 0; maximum: 100; value: 50;  
+            changed => {Shared.value = s.value; c.updateText(s.value);}}
+        c := Component2 {px: Shared.value   ;}
+    }
+
+}

@@ -87,7 +87,6 @@ pub fn f_to_lin_skew(start: f32, end: f32, num_points: usize, skew_f: f32, y: f3
     (num_points as f32 - 1.0) * skewed_position
 }
 
-
 /// Function to compute the magnitude response of a biquad filter
 /// # Arguments
 /// * `b` - A tuple with the biquad numerator coefficients (b0, b1, b2)
@@ -204,6 +203,21 @@ pub fn points_to_smooth_svg_path(points: &[(f32, f32)], smoothness: f32) -> Shar
     let last_point = points.last().unwrap();
     path.push_str(&format!("L {} {}", last_point.0+2.0, last_point.1));
     path.push_str(&format!("L {} {}", last_point.0+2.0, 201.0));
+    path
+}
+
+pub fn create_grid_svg(freq_points: Vec<f32>, gain_points: Vec<f32>) -> SharedString {
+    let mut path = SharedString::new();
+    for i in 0..freq_points.len() {
+        let point = freq_points[i];
+        path.push_str(&format!("M {} {}", point, -1000.0));
+        path.push_str(&format!("L {} {}", point, 1000.0));
+    }   for i in 0..gain_points.len() {
+        let point = gain_points[i];
+        path.push_str(&format!("M {} {}", -1000,point));
+        path.push_str(&format!("L {} {}", 1000, point));
+    }
+
     path
 }
 

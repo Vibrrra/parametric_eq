@@ -1,5 +1,6 @@
 import { Button, HorizontalBox, VerticalBox } from "std-widgets.slint";
 
+
 export global EQDesign {
     // Curve color schemes
     out property <color> eq_curve_color: red;
@@ -7,7 +8,7 @@ export global EQDesign {
     out property <float> eq_curve_opacity: 0.2;
     out property <float> highlighted: 0.05;
     out property <string> main-font: "CodeNewRoman Nerd Font";
-    out property <length> font-main-size: 17px;
+    out property <length> font-main-size: 15px;
     //  EQ Control Point color schemes
     out property <color> eq_control_point_color: grey;
     out property <color> eq_control_point_fill: grey;
@@ -118,6 +119,7 @@ export struct DraggablePosition {
 export global DraggableLogic {
     pure callback get_nearest_filter([DraggablePosition]) -> int;
     callback calc_distance(float,float,float,float) -> float;
+    out property <[int]> draggable_ids: [0,1,2,3,4,5,6,7];
     calc_distance(x,y,mouse_x, mouse_y) => {
         sqrt( pow(x - mouse_x, 2) + pow(y - mouse_y, 2));
     }
@@ -130,6 +132,19 @@ export global DraggableLogic {
     push_ta_away(id) => {
         EQGraphManager.draggable_positions[id].hovered = false;
     }
+
+    callback reset_draggables(int);
+    reset_draggables(id) => {
+        if (id != 0) {EQGraphManager.draggable_positions[id].hovered = false; EQGraphManager.eq_curve_data[id].highlighted = false;}
+        if (id != 1) {EQGraphManager.draggable_positions[id].hovered = false; EQGraphManager.eq_curve_data[id].highlighted = false;}
+        if (id != 2) {EQGraphManager.draggable_positions[id].hovered = false; EQGraphManager.eq_curve_data[id].highlighted = false;}
+        if (id != 3) {EQGraphManager.draggable_positions[id].hovered = false; EQGraphManager.eq_curve_data[id].highlighted = false;}
+        if (id != 4) {EQGraphManager.draggable_positions[id].hovered = false; EQGraphManager.eq_curve_data[id].highlighted = false;}
+        if (id != 5) {EQGraphManager.draggable_positions[id].hovered = false; EQGraphManager.eq_curve_data[id].highlighted = false;}
+        if (id != 6) {EQGraphManager.draggable_positions[id].hovered = false; EQGraphManager.eq_curve_data[id].highlighted = false;}
+        if (id != 7) {EQGraphManager.draggable_positions[id].hovered = false; EQGraphManager.eq_curve_data[id].highlighted = false;}
+
+    }
 }
 
 export struct EQCurveData {
@@ -138,6 +153,7 @@ export struct EQCurveData {
 }
 
 export global EQGraphManager {
+    in-out property <float> q-test;
 
     in-out property <length> eq_graph_width: 800px;
     in-out property <length> eq_graph_height: 250px;
@@ -165,14 +181,14 @@ export global EQGraphManager {
 
     // init draggable positions
     in-out property <[DraggablePosition]> draggable_positions: [
-        {x: 20 ,y: 20,  id: 0, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[1], q_value: 1.0},
-        {x: 50 ,y: 120, id: 1, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
-        {x: 70 ,y: 70,  id: 2, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
-        {x: 100 ,y: 70,  id: 3, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
-        {x: 132 ,y: 70,  id: 4, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
-        {x: 160 ,y: 70,  id: 5, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
-        {x: 200 ,y: 70,  id: 6, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
-        {x: 220 ,y: 70,  id: 7, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[0], q_value: 1.0},
+        {x: 113.3 ,y: 125,  id: 0, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[1], q_value: 1.0},
+        {x: 152.1 ,y: 125, id: 1, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
+        {x: 194.0 ,y: 125,  id: 2, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
+        {x: 260.3 ,y: 125,  id: 3, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
+        {x: 322.5 ,y: 125,  id: 4, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
+        {x: 398.3 ,y: 125,  id: 5, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
+        {x: 525.2 ,y: 125,  id: 6, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[3], q_value: 1.0},
+        {x: 647.0 ,y: 125,  id: 7, active: true, selected: false, hovered: has-hover, filter_type: list-of-filter-types[0], q_value: 1.0},
     ];
 
     in-out property <[EQCurveData]> eq_curve_data: [
@@ -235,11 +251,22 @@ export global EQGraphManager {
         }
     }
 
-   
+   //30 * (125  - EQGraphManager.draggable_positions[selected_draggable].y) /125;
 
+    // callback mx_to_gain(float) -> float;
+    // mx_to_gain(y_g) => {
+    //     (EQGraphManager.max_gain  * (eq_graph_height/2px - y_g) / EQGraphManager.db_scaling_factor);
+    // }
+    
+    // 30.0  * (eq_canvas_half_height - filter.y) / eq_canvas_half_height;
     callback mx_to_gain(float) -> float;
     mx_to_gain(y_g) => {
-        (EQGraphManager.eq_graph_height/2px - y_g) * (2 * EQGraphManager.db_scaling_factor);
+        max_gain  * (eq_graph_height/2px - y_g) / (eq_graph_height/2px);
+    }
+
+    callback gain_to_mx(float) -> float;
+    gain_to_mx(g) => {
+        eq_graph_height/2px - (g * eq_graph_height/2px / 30.0);
     }
 }
 
@@ -266,37 +293,42 @@ export component EQCurve {
 
 export component Draggable inherits Rectangle {
   
-    
+    width: 12px;
+    height: 12px;    
+    center_x: 0px;
+    center_y: 0px;
 
-        
-    callback reset_x_y();
-    callback push_ta_away();
+        // opacity:  selected ? 1.0 : active ? 1.0 : 0.1;
+        opacity: active ? 1.0 : 0.15;
+        // opacity: active ? 1.0 : (hovered ? 0.5 : 0.2);
+    
+        border-radius: self.width / 2;
+        border-width: 2px;
+    
+    // callback reset_x_y();
+    // callback push_ta_away();
 
     // position variables
-    x: self.center_x * 1px - self.width  / 2 ;
-    y: self.center_y * 1px - self.height / 2;
-    in-out property <float> center_x;
-    in-out property <float> center_y;
-    
+    x: self.center_x - self.width  / 4;
+    y: self.center_y - self.width  / 4;
+    // ta:=TouchArea {}
+    in-out property <length> center_x;
+    in-out property <length> center_y;
+  
     // meta data
     in-out property <int> id;
-    in-out property <bool> active;
+    in-out property <bool> active: false;
     in-out property <bool> selected;    
     in-out property <float> distance;
-    in-out property <bool> hovered;
+    in-out property <bool> hovered;//ta.has-hover;
     
     
     // Look and feel
-    background: active ? (selected ? red : blue) : grey;
-    opacity: active ? 1.0 : (hovered ? 0.5 : 0.2);
-    width: 10px;
-    height: 10px;
-    border-radius: self.width / 2;
-    border-width: 2px;
-
+    // background: active ? (selected ? red : (hovered ? grey.brighter ) :  grey;//; :  hovered ?  grey.brighter : grey);
+    background: selected ?  red : active ? green : hovered ? grey : grey;
     callback calc_distance(float,float) -> float;
     calc_distance(mxc,myc) => {
-        distance = sqrt( pow(self.center_x - mxc, 2) + pow(self.center_y - myc, 2));
+        distance = sqrt( pow(self.center_x/1px - mxc, 2) + pow(self.center_y/1px - myc, 2));
         distance
     }
 }
@@ -312,7 +344,14 @@ component TESTPATH inherits Path{
         stroke: black;
        
 }
-     
+ 
+export global EqCanvasGrid {
+    in-out property <[float]> freq-points: [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+    in-out property <[float]> gain-points: [-30, -25, -20, -15, -10, -5, 0, 5, 10, 15, 20, 25, 30];
+    // pure callback calc_gain_points();
+    pure callback create_grid();
+    in-out property <string> svg;
+}
 
 
 
@@ -323,6 +362,104 @@ export global EQCanvasLogic{
 }
     // pure function get_nearest_filter2(draggables: [DraggablePosition],mx: float,my: float) -> int 
 export component EQCanvas inherits Rectangle {
+    init => {   
+        update_all();
+        ta.moved();
+    }
+    //{kind: PointerEventKind.move; button: PointerEventButton.left;};
+    
+
+
+    // Update callback filter switches    
+    callback update_filter0_on_switch();
+    callback update_filter1_on_switch();
+    callback update_filter2_on_switch();
+    callback update_filter3_on_switch();
+    callback update_filter4_on_switch();
+    callback update_filter5_on_switch();
+    callback update_filter6_on_switch();
+    callback update_filter7_on_switch();
+    
+    // Update callback filter frequency control
+    callback update_filter0_freq_control();
+    callback update_filter1_freq_control();
+    callback update_filter2_freq_control();
+    callback update_filter3_freq_control();
+    callback update_filter4_freq_control();
+    callback update_filter5_freq_control();
+    callback update_filter6_freq_control();
+    callback update_filter7_freq_control();
+
+    // Update callback filter Q control
+    callback update_filter0_q_control();
+    callback update_filter1_q_control();
+    callback update_filter2_q_control();
+    callback update_filter3_q_control();
+    callback update_filter4_q_control();
+    callback update_filter5_q_control();
+    callback update_filter6_q_control();
+    callback update_filter7_q_control();
+    
+    // Update callback filter switche gain control
+    callback update_filter0_gain_control();
+    callback update_filter1_gain_control();
+    callback update_filter2_gain_control();
+    callback update_filter3_gain_control();
+    callback update_filter4_gain_control();
+    callback update_filter5_gain_control();
+    callback update_filter6_gain_control();
+    callback update_filter7_gain_control();
+    callback update_all();
+    
+    update_all => {
+        update_filter0_on_switch();
+        update_filter1_on_switch();
+        update_filter2_on_switch();
+        update_filter3_on_switch();
+        update_filter4_on_switch();
+        update_filter5_on_switch();
+        update_filter6_on_switch();
+        update_filter7_on_switch();
+
+
+        update_filter0_q_control();
+        update_filter0_freq_control();
+        update_filter0_gain_control();
+        update_filter1_q_control();
+        update_filter1_freq_control();
+        update_filter1_gain_control();
+        update_filter2_q_control();
+        update_filter2_freq_control();
+        update_filter2_gain_control();
+        update_filter3_q_control();
+        update_filter3_freq_control();
+        update_filter3_gain_control();
+        update_filter4_q_control();
+        update_filter4_freq_control();
+        update_filter4_gain_control();
+        update_filter5_q_control();
+        update_filter5_freq_control();
+        update_filter5_gain_control();
+        update_filter6_q_control();
+        update_filter6_freq_control();
+        update_filter6_gain_control();
+        update_filter7_q_control();
+        update_filter7_freq_control();
+        update_filter7_gain_control();
+    }
+
+    callback update_filters();
+    
+    update_filters => {
+        EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[selected_draggable]);
+        // EQGraphManager.draggable_positions[selected_draggable].gain =  30 * (125  - EQGraphManager.draggable_positions[selected_draggable].y) /125;
+        // EQGraphManager.draggable_positions[selected_draggable].gain =  EQGraphManager.mx_to_gain(EQGraphManager.draggable_positions[selected_draggable].y) ;
+        EQGraphManager.set_eq_curve(selected_draggable, EQGraphManager.new_curve); 
+        update_all();
+    }
+    
+    // }
+    in-out property <bool> frequency_grid: true;
     // width: parent.width;
     // height: parent.height;
     // min-width: 600px;
@@ -438,23 +575,24 @@ export component EQCanvas inherits Rectangle {
                         EQGraphManager.selected_draggable(6, selected_draggable);
                         EQGraphManager.selected_draggable(7, selected_draggable);
 
-                        
-
-                    } else if event.kind == PointerEventKind.up {
+                        } else if event.kind == PointerEventKind.up {
+                    
                     }
                 }
             
                 moved => {
                     if (self.enabled && self.pressed) {
-                        
                         if selected_draggable == -1 {
                             return;
                         }
                         EQGraphManager.draggable_positions[selected_draggable].x = clamp((pressed-value-x + (ta.mouse-x - ta.pressed-value-x)) / 1px, 0, parent.width / 1px);
                         EQGraphManager.draggable_positions[selected_draggable].y = clamp((pressed-value-y + (ta.mouse-y - ta.pressed-value-y)) / 1px, 0, parent.height / 1px);
                         EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[selected_draggable]);
-                        EQGraphManager.draggable_positions[selected_draggable].gain =  30 * (125  - EQGraphManager.draggable_positions[selected_draggable].y) /125 ;
+                        // EQGraphManager.draggable_positions[selected_draggable].gain =  30 * (125  - EQGraphManager.draggable_positions[selected_draggable].y) /125;
+                        EQGraphManager.draggable_positions[selected_draggable].gain =  EQGraphManager.mx_to_gain(EQGraphManager.draggable_positions[selected_draggable].y) ;
                         EQGraphManager.set_eq_curve(selected_draggable, EQGraphManager.new_curve); 
+                        update_all();
+                    
                     }                 
                 }
                 
@@ -475,7 +613,26 @@ export component EQCanvas inherits Rectangle {
                     EQGraphManager.draggable_positions[selected_draggable].q_value = clamp(EQGraphManager.draggable_positions[selected_draggable].q_value, EQGraphManager.min_q, EQGraphManager.max_q);
                     EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[selected_draggable]);
                     EQGraphManager.set_eq_curve(selected_draggable, EQGraphManager.new_curve);
+                    EQGraphManager.q-test = EQGraphManager.draggable_positions[selected_draggable].q_value;
                     
+                    if selected_draggable == 0 {
+                        update_filter0_q_control();
+                    } else if selected_draggable == 1 {
+                        update_filter1_q_control();
+                    } else if selected_draggable == 2 {
+                        update_filter2_q_control();
+                    } else if selected_draggable == 3 {
+                        update_filter3_q_control();
+                    } else if selected_draggable == 4 {
+                        update_filter4_q_control();
+                    } else if selected_draggable == 5 {
+                        update_filter5_q_control();
+                    } else if selected_draggable == 6 {
+                        update_filter6_q_control();
+                    } else if selected_draggable == 7 {
+                        update_filter7_q_control();
+                    }
+
                     EventResult.accept   ;
                 }
 
@@ -523,29 +680,35 @@ export component EQCanvas inherits Rectangle {
             for dp in EQGraphManager.draggable_positions: 
                 Draggable {
                     clip: true;
-                    center_x: dp.x;
-                    center_y: dp.y;
+                    center_x: dp.x * 1px;
+                    center_y: dp.y * 1px;
                     active: dp.active;
+                    background: dp.selected ? #ce7171 : dp.active ? #71cebb : grey;//dp.hovered? red : dp.selected? blue : grey;
                     id: dp.id;
                     selected: dp.selected;
-                    hovered: dp.hovered;
+                    // hovered: dp.hovered;
                   
             }
             
-            if false: 
+            if frequency_grid: 
+                
                 Path {
+                    init => {EqCanvasGrid.create_grid();}
                     width: 100%;
                     height: 100%;
+                    viewbox-x: 0;
+                    viewbox-y: 0;
                     viewbox-height: EQGraphManager.eq_graph_height/2px;
                     viewbox-width: EQGraphManager.eq_graph_width/2px;
-                    commands: "M -1 100.5 L \{ EQGraphManager.eq_graph_width/2 /1px +1} 0";
+                    commands: EqCanvasGrid.svg;
                     stroke: black;
                     stroke-width: 1.5px;
+
                 }
 
             Text {
                 // text: "MY: \{EQGraphManager.draggable_positions[selected_draggable].gain}";
-                text: ta.moveds? "Moved" : "Not Moved";
+                text: EQGraphManager.draggable_positions[selected_draggable].x;
             }      
         }
     }

@@ -1,8 +1,8 @@
 import {VerticalBox, HorizontalBox, TabWidget, Button, TextEdit, ListView, ComboBox, LineEdit, AboutSlint} from "std-widgets.slint";
-import {EQCanvas, EQCanvasLogic,EQCurveData, EQGraphManager, DraggableLogic, FilterType} from "eq_canvas.slint";
-import {EQ-CONTROL-SECTION-MANAGER, EQ_CONTROL_SECTION, FILTER-SELECTION-POP-UP} from "eq_control_section.slint";
+import {EQCanvas, EqCanvasGrid, EQCanvasLogic,EQCurveData, EQGraphManager, DraggableLogic, FilterType} from "eq_canvas.slint";
+import {EQ-CONTROL-SECTION-MANAGER, EQ_CONTROL_SECTION, FILTER-SELECTION-POP-UP, FILTER-CONTROL} from "eq_control_section.slint";
 // global exports
-export {EQGraphManager, EQCanvasLogic, DraggableLogic}
+export {EQGraphManager, EQCanvasLogic, DraggableLogic, EqCanvasGrid}
 
 
 struct Filter {
@@ -18,17 +18,47 @@ export component AppWindow inherits Window {
     // height: EQGraphManager.eq_graph_height;
     in property <[string]> curve_data;
 
-    Rectangle { width: parent.width; height: parent.height; background: #353c51;}
-    ta := TouchArea { fs := FocusScope {} clicked => {fs.focus()}}
+    Rectangle { 
+        width: parent.width; 
+        height: parent.height; 
+        background: #353c51;
+    }
+
+    ta := TouchArea { 
+        fs := FocusScope {} 
+        clicked => {fs.focus()}
+    }
+
     outer_layer := VerticalLayout { 
-        // width: parent.width;
-        // alignment: start;    
         
         width: EQGraphManager.eq_graph_width;
         height: parent.height;
         alignment: start;
-        // spacing: 20px;
+
+        spacing: 20px;
         // DEBUG here
+        // HorizontalLayout { height: 90px; width: EQGraphManager.eq_graph_width;   
+        //     alignment:center;
+        //     Text {vertical-alignment: center; horizontal-alignment: center; text: "TheEQfromBelow"; font-family: "CodeNewRoman Nerd Font"; font-size: 60px;}
+        // }
+        
+        // // EQ CANVAS SECTION
+        // Rectangle { 
+        //     width: parent.width; 
+        //     height: EQGraphManager.eq_graph_height;       
+        //     eq_canvas := EQCanvas {x: 0; y: 0; update_q_control <=> eq-control; }}
+        // }
+        
+        // eq_control := EQ-CONTROL-SECTION {
+        //     width: parent.width;
+        //     height: 200px;
+        // }
+        // AboutSlint {
+        //     width: parent.width;
+        //     height: 50px;
+        // }
+
+        // NEW COMPOSITION
         HorizontalLayout { height: 90px; width: EQGraphManager.eq_graph_width;   
             alignment:center;
             Text {vertical-alignment: center; horizontal-alignment: center; text: "TheEQfromBelow"; font-family: "CodeNewRoman Nerd Font"; font-size: 60px;}
@@ -38,13 +68,74 @@ export component AppWindow inherits Window {
         Rectangle { 
             width: parent.width; 
             height: EQGraphManager.eq_graph_height;       
-            eq_canvas := EQCanvas {x: 0; y: 0;}
-        }
+            eq_canvas := EQCanvas {
 
-        eq_control := EQ-CONTROL-SECTION {
-            width: parent.width;
-            height: 200px;
+                x: 0; 
+                y: 0; 
+
+                update_filter0_on_switch => {filter-0-control.update_on_switch()}
+                update_filter1_on_switch => {filter-1-control.update_on_switch()}
+                update_filter2_on_switch => {filter-2-control.update_on_switch()}
+                update_filter3_on_switch => {filter-3-control.update_on_switch()}
+                update_filter4_on_switch => {filter-4-control.update_on_switch()}
+                update_filter5_on_switch => {filter-5-control.update_on_switch()}
+                update_filter6_on_switch => {filter-6-control.update_on_switch()}
+                update_filter7_on_switch => {filter-7-control.update_on_switch()}
+
+                update_filter0_q_control => {filter-0-control.update_q_ui()}
+                update_filter0_gain_control => {filter-0-control.update_gain_ui()}
+                update_filter0_freq_control => {filter-0-control.update_freq_ui()}
+                update_filter1_q_control => {filter-1-control.update_q_ui()}
+                update_filter1_gain_control => {filter-1-control.update_gain_ui()}
+                update_filter1_freq_control => {filter-1-control.update_freq_ui()}
+                update_filter2_q_control => {filter-2-control.update_q_ui()}
+                update_filter2_gain_control => {filter-2-control.update_gain_ui()}
+                update_filter2_freq_control => {filter-2-control.update_freq_ui()}
+                update_filter3_q_control => {filter-3-control.update_q_ui()}
+                update_filter3_gain_control => {filter-3-control.update_gain_ui()}
+                update_filter3_freq_control => {filter-3-control.update_freq_ui()}
+                update_filter4_q_control => {filter-4-control.update_q_ui()}
+                update_filter4_gain_control => {filter-4-control.update_gain_ui()}
+                update_filter4_freq_control => {filter-4-control.update_freq_ui()}
+                update_filter5_q_control => {filter-5-control.update_q_ui()}
+                update_filter5_gain_control => {filter-5-control.update_gain_ui()}
+                update_filter5_freq_control => {filter-5-control.update_freq_ui()}
+                update_filter6_q_control => {filter-6-control.update_q_ui()}
+                update_filter6_gain_control => {filter-6-control.update_gain_ui()}
+                update_filter6_freq_control => {filter-6-control.update_freq_ui()}
+                update_filter7_q_control => {filter-7-control.update_q_ui()}
+                update_filter7_gain_control => {filter-7-control.update_gain_ui()}
+                update_filter7_freq_control => {filter-7-control.update_freq_ui()}
+    
+                
+            }
         }
+        HorizontalLayout {
+             
+            width: parent.width;
+            alignment: center;
+            VerticalLayout {
+                // alignment: center;
+                alignment: center;
+                width: EQGraphManager.eq_graph_width/2;
+                filter_0_control := FILTER-CONTROL {id: 0; width: 300px;}
+                filter_1_control := FILTER-CONTROL {id: 1; width: 300px;}
+                filter_2_control := FILTER-CONTROL {id: 2; width: 300px;}
+                filter_3_control := FILTER-CONTROL {id: 3; width: 300px;}
+            }
+            VerticalLayout {
+                alignment: center;
+                width: EQGraphManager.eq_graph_width/2;
+                filter_4_control := FILTER-CONTROL {id: 4;width: 300px;}
+                filter_5_control := FILTER-CONTROL {id: 5;width: 300px;}
+                filter_6_control := FILTER-CONTROL {id: 6;width: 300px;}
+                filter_7_control := FILTER-CONTROL {id: 7;width: 300px;}
+            }
+        }
+        // eq_control := EQ-CONTROL-SECTION {
+        //     width: parent.width;
+        //     height: 200px;
+        // }
         AboutSlint {
             width: parent.width;
             height: 50px;
@@ -56,4 +147,5 @@ export component AppWindow inherits Window {
     //             // x: EQ-CONTROL-SECTION-MANAGER.place_filter_selection_x - self.absolute-position.x;
     //             // y: EQ-CONTROL-SECTION-MANAGER.place_filter_selection_y - self.absolute-position.y;
     //     }
+
 }

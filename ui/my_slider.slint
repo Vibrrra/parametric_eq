@@ -38,3 +38,82 @@ export component MySlider inherits Rectangle {
         }
     }
 }
+
+
+
+
+
+export component Example inherits Window {
+    width: 500px;
+    height: 500px;
+    in-out property <bool> signal;
+    in-out property <bool> a_act;
+    in-out property <bool> b_act;
+
+    callback mass_reset(int);
+    mass_reset(a_id) => {
+        if (a_id != 0) {
+            a_act = true;
+            r1.x = 50px;
+
+        } else if (a_id != 1) {
+            b_act = true;
+            r2.x = 50px;
+        }
+    }
+
+     
+    ba := Rectangle {
+        background: yellow;
+        out property <int> id;
+        ta := TouchArea {
+            // pointer-event(event) => {
+            //     if (event.kind == PointerEventKind.move) {
+            //         mass_reset(id);
+            //         r1.x = 150px;
+            //     } else {
+
+            //     }
+            // }
+        }
+        Text {text: ta.has-hover ? "H" : "nH";}  
+    }
+    r1 := Rectangle {
+        out property <int> id: 0;
+        width: 50px;
+        height: 50px;
+        background: black;
+        x: 50px ;
+        // x: 50px;
+        y: 50px;
+        
+            tr:=TouchArea {
+                pointer-event(event) => {
+                    if (event.kind == PointerEventKind.move) {
+                        mass_reset(id);
+                        r1.x = 1500px;
+                        
+                    } 
+                }
+        }
+    }
+    r2 := Rectangle {
+        out property <int> id: 1;
+        width: 50px;
+        height: 50px;
+        background: black;
+        x: b_act ? 50px : 100px;
+        y: 150px;
+        
+            tr2 := TouchArea {
+                pointer-event(event) => {
+                    if (event.kind == PointerEventKind.move) {
+                    
+                        mass_reset(id);
+                        r2.x = 1500px;
+                        
+                    } 
+                }
+        }
+    }
+}
