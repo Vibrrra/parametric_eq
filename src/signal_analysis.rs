@@ -286,9 +286,9 @@ fn test_log_space_skewed() {
 fn test_lin_to_f_skew() {
     let start = 20.0;
     let end = 20000.0;
-    let num_points = 500;
+    let num_points = 250;
     let skew_f = 0.3; // Example skew factor
-    let x = 250.0; // Example x value
+    let x = 100.0; // Example x value
     let frequency = super::lin_to_f_skew(start, end, num_points, skew_f, x);
     dbg!(frequency);
 }
@@ -297,9 +297,9 @@ fn test_lin_to_f_skew() {
 fn test_f_to_lin_skew() {
     let start = 20.0;
     let end = 20000.0;
-    let num_points = 500;
+    let num_points = 250;
     let skew_f = 0.3; // Example skew factor
-    let y = 1000.0; // Example y value
+    let y = 974.84; // Example y value
     let x = super::f_to_lin_skew(start, end, num_points, skew_f, y);
     dbg!(x); }
 }

@@ -120,21 +120,29 @@ fn main() {
     let ui_c = ui.clone_strong();
     ui.global::<UI::EqCanvasGrid>().on_create_grid( move||{
             let fp = ui_c.global::<UI::EqCanvasGrid>().get_freq_points();
-            let gp = ui_c.global::<UI::EqCanvasGrid>().get_gain_points();
+            let gp: ModelRc<f32> = ui_c.global::<UI::EqCanvasGrid>().get_gain_points();
             let mut h = 
                 fp.iter()
                     .map(|x| {x
                         // f_to_lin_skew(20.0, 20000.0, n_freq_points as usize, skew_f, x)
                     })
-                    .collect::<Vec<f32>>();
+                    .collect::<Vec<(f32)>>();
+            let mut g = 
+                gp.iter()
+                    .map(|x| {x
+                        // f_to_lin_skew(20.0, 20000.0, n_freq_points as usize, skew_f, x)
+                    })
+                    .collect::<Vec<(f32)>>();
             // h.iter_mut().for_each(|x| *x = map_to_canvas((0, x), eq_canvas_half_width, n_freq_points, eq_canvas_half_height).1);
-            let svg_f: Vec<f32> = h.iter().enumerate().map(|x| {
-                let temp = map_to_canvas(x, eq_canvas_half_width, n_freq_points, eq_canvas_half_height);
-                temp.1
+            let svg_f: Vec<(f32)> =  h.iter().enumerate().map(|(u, x)| {
+                let temp = 400.0 * f_to_lin_skew(20.0, 20000.0, n_freq_points as usize, skew_f, (*x)) / n_freq_points as f32; // 250.0 before
+                // let o = map_to_canvas(( temp,x.1), eq_canvas_half_width, n_freq_points, eq_canvas_half_height)
+                temp
             }).collect();
-            // let svg_g: Vec<f32> = h.iter().map(|x| {
-            //     eq_canvas_half_height - (x * eq_canvas_half_height / 30.0)}).collect();
-            let grid = create_grid_svg(svg_f, h);//svg_g);
+            let svg_g: Vec<f32> = g.iter().map(|x| {
+                // eq_canvas_half_height - (x.1 * eq_canvas_half_height / 30.0)}).collect();
+                eq_canvas_half_height - eq_canvas_half_height * ((x +  30.0)/60.0) }).collect();
+            let grid = create_grid_svg(svg_f, svg_g);//svg_g);
             
             ui_c.global::<UI::EqCanvasGrid>().set_svg(grid);
         }
@@ -150,7 +158,7 @@ fn main() {
         let gain = 30.0  * (eq_canvas_half_height - filter.y) / eq_canvas_half_height;//(2.0 * db_scaling_factor);
         // dbg!(gain);
         // scale frequency. Mouse-X-Pos -> Frequency
-        let freq = lin_to_f_skew(20.0, 20000.0, eq_canvas_half_width as usize * 2 , 0.3, filter.x);
+        let freq = lin_to_f_skew(20.0, 20000.0, eq_canvas_half_width as usize * 2 , skew_f, filter.x);
         
         // get filter type. Converts UI-Enum-Variant(Slint) to Biquad-Enum-Variant (Rust)
         // let fl: UI::FilterType = filter.filter_type;
@@ -167,7 +175,7 @@ fn main() {
         let (new_response, _) = signal_analysis::calculate_biquad_response(
             (new_coeffs.b0, new_coeffs.b1, new_coeffs.b2), 
             (1.0, new_coeffs.a1, new_coeffs.a2), 
-             sampling_rate, 250);
+             sampling_rate, n_freq_points as usize);
 
         // update eq_curves container
         eq_curves.copy_from_slice(filter.id as usize, &new_response, filter.active);

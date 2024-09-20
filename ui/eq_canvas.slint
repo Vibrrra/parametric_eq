@@ -40,61 +40,16 @@ export struct EQControlPointData {
 }
 
 
-
-export component MySlider inherits Rectangle {
-    in-out property<float> maximum: 100;
-    in-out property<float> minimum: 0;
-    in-out property<float> value;
-
-    min-height: 24px;
-    min-width: 100px;
-    horizontal-stretch: 1;
-    vertical-stretch: 0;
-
-    border-radius: root.height/2;
-    background: touch.pressed ? #eee: #ddd;
-    border-width: 1px;
-    border-color: root.background.darker(25%);
-
-    handle := Rectangle {
-        width: self.height;
-        height: parent.height;
-        border-width: 3px;
-        border-radius: self.height / 2;
-        background: touch.pressed ? #f8f: touch.has-hover ? #66f : #0000ff;
-        border-color: self.background.darker(15%);
-        x: (root.width - handle.width) * (root.value - root.minimum) / (root.maximum - root.minimum);
-    }
-    touch := TouchArea {
-        property <float> pressed-value;
-        pointer-event(event) => {
-            if (event.button == PointerEventButton.left && event.kind == PointerEventKind.down) {
-                self.pressed-value = root.value;
-            }
-        }
-        moved => {
-            if (self.enabled && self.pressed) {
-                root.value = max(root.minimum, min(root.maximum,
-                    self.pressed-value 
-                    + (touch.mouse-x - touch.pressed-x) 
-                    * (root.maximum - root.minimum) 
-                    / (root.width - handle.width)));
-            }
-        }
-    }
+export component FilterCurveSVG {
+    in-out property <{x: float, y: float}> M;
+    in-out property <[{px1: float, py1: float, px2: float, py2: float, cx: float, cy: float}]> C;
+    in-out property <int> length: C.length;
+    
+    
+    
 }
 
-export component Recipe inherits Window {
-    VerticalBox {
-        alignment: start;
-        slider := MySlider {
-            maximum: 100;
-        }
-        Text {
-            text: "Value: \{round(slider.value)}";
-        }
-    }
-}
+
 
 export enum FilterType {
     LowPass, LowShelf, HighPass, HighShelf, BandPass, Notch, PeakingEQ
@@ -642,12 +597,32 @@ export component EQCanvas inherits Rectangle {
                     if selected_draggable == -1 {return;}
                     EQGraphManager.draggable_positions[selected_draggable].active = !EQGraphManager.draggable_positions[selected_draggable].active;
                     EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[selected_draggable]);
-
+                    // if selected_draggable == 0 {
+                    //     update_filter0_on_switch();
+                    // } else if selected_draggable == 1 {
+                    //     update_filter1_on_switch();
+                    // } else if selected_draggable == 2 {
+                    //     update_filter2_on_switch();
+                    // } else if selected_draggable == 3 {
+                    //     update_filter3_on_switch();
+                    // } else if selected_draggable == 4 {
+                    //     update_filter4_on_switch();
+                    // } else if selected_draggable == 5 {
+                    //     update_filter5_on_switch();
+                    // } else if selected_draggable == 6 {
+                    //     update_filter6_on_switch();
+                    // } else if selected_draggable == 7 {
+                    //     update_filter7_on_switch();
+                    // }   
                 }
 
                 
                 
             }
+
+
+        
+
             Path {
                 width: 100%;
                 height: 100%; 
@@ -689,27 +664,59 @@ export component EQCanvas inherits Rectangle {
                     // hovered: dp.hovered;
                   
             }
-            
             if frequency_grid: 
                 
-                Path {
-                    init => {EqCanvasGrid.create_grid();}
-                    width: 100%;
-                    height: 100%;
-                    viewbox-x: 0;
-                    viewbox-y: 0;
-                    viewbox-height: EQGraphManager.eq_graph_height/2px;
-                    viewbox-width: EQGraphManager.eq_graph_width/2px;
-                    commands: EqCanvasGrid.svg;
-                    stroke: black;
-                    stroke-width: 1.5px;
+            Path {
+                init => {EqCanvasGrid.create_grid();}
+                clip: true;
+                width: 100%;
+                height: 100%;
+                viewbox-x: 0;
+                viewbox-y: 0;
+                viewbox-height: EQGraphManager.eq_graph_height/2px;
+                viewbox-width: EQGraphManager.eq_graph_width/2px;
+                commands: EqCanvasGrid.svg;
+                stroke: black;
+                opacity: 0.2;
+                stroke-width: 1.5px;
 
-                }
+            }
+        
 
             Text {
                 // text: "MY: \{EQGraphManager.draggable_positions[selected_draggable].gain}";
                 text: EQGraphManager.draggable_positions[selected_draggable].x;
             }      
+        }
+    }
+}
+
+
+
+
+// test svg curve
+export component TestSVG {
+    Rectangle {
+        width: 800px;
+        height: 250px;
+        background: #c1f3ff;
+        FilterCurveSVG {
+
+            width: 100%;
+            height: 100%;
+            
+            M: {x: 0, y: 125};
+            C: [
+                {px1: 0, py1: 125, px2: 0, py2: 125, cx: 113.3, cy: 125},
+                {px1: 113.3, py1: 125, px2: 113.3, py2: 125, cx: 152.1, cy: 125},
+                {px1: 152.1, py1: 125, px2: 152.1, py2: 125, cx: 194.0, cy: 125},
+                {px1: 194.0, py1: 125, px2: 194.0, py2: 125, cx: 260.3, cy: 125},
+                {px1: 260.3, py1: 125, px2: 260.3, py2: 125, cx: 322.5, cy: 125},
+                {px1: 322.5, py1: 125, px2: 322.5, py2: 125, cx: 398.3, cy: 125},
+                {px1: 398.3, py1: 125, px2: 398.3, py2: 125, cx: 525.2, cy: 125},
+                {px1: 525.2, py1: 125, px2: 525.2, py2: 125, cx: 647.0, cy: 125},
+                {px1: 647.0, py1: 125, px2: 647.0, py2: 125, cx: 800, cy: 125},
+            ];
         }
     }
 }

@@ -28,15 +28,17 @@ export global EQ_CONTROL_SECTION_MANAGER {
 
 export component ON_OFF_SWITCH {
     callback update();
-    // update() => {
+    update() => {
 
         // EQGraphManager.draggable_positions[id].active = !EQGraphManager.draggable_positions[id].active;
+        // eq_on = EQGraphManager.draggable_positions[id].active;
+    }
         // EQCanvasLogic.calc_new_filter(EQGraphManager.draggable_positions[id]);
         // EQGraphManager.set_eq_curve(id, EQGraphManager.new_curve);
     // }
     in-out property <int> id;
-    in-out property <bool> eq_on: EQGraphManager.draggable_positions[id].active;  
-    Rectangle {background: #9ba8d0;}
+    in-out property <bool> eq_on;// EQGraphManager.draggable_positions[id].active;  
+    Rectangle {background: #9ba8d0; opacity: eq_on? 1.0 : 0.1;}
     Rectangle {
         height: parent.height; 
         width: parent.height;    
@@ -344,7 +346,7 @@ export component FILTER_CONTROL {
             alignment: center;
             width: 60px;
             height: 40px;
-            Rectangle {on-switch := ON-OFF-SWITCH {id: id;height: 40px; width: 60px;}
+            Rectangle {on-switch := ON-OFF-SWITCH {id: id;height: 40px; width: 60px; eq_on: EQGraphManager.draggable_positions[id].active;}
                 background: #9ba8d0; opacity: EQGraphManager.draggable_positions[id].active? 1.0: 0.1;
                 
             }
