@@ -8,15 +8,20 @@ use filters::BiquadFilter;
 use signal_analysis::{calculate_biquad_response, create_grid_svg, f_to_lin_skew, lin_to_f, lin_to_f_skew, points_to_smooth_svg_path};
 use slint::{ComponentHandle, Model, ModelExt, ModelRc, SharedString, VecModel};
 
-pub mod UI{ slint::include_modules!();}
+pub mod UI { slint::include_modules!();}
 mod filters;
 mod signal_analysis;
+
+
 // #[derive(Clone)]
 // struct EQCurveData {
 //     svg: SharedString,
 //     highlighted: bool,
 //     control_points: (f32, f32),
 // }
+
+
+ 
 
 #[derive(Clone)]
 pub struct EqCurves {
@@ -89,6 +94,12 @@ fn main() {
         is_active: [true; N_FILTERS],
     };
     // let (tx, rx) = crossbeam::channel::bounded(1);
+    let ui_2 = ui.clone_strong();
+    ui.global::<UI::EQManagerUI>().on_update(|id| {
+
+        // ui_2.global::<UI::EQManagerUI>();
+    });
+    // let mut dp = ui.global::<UI::DraggablePosition>();
     
 
     // Function that activates a based on the Mouse-Click-Position on the EQ-Canvas

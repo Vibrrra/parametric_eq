@@ -1,0 +1,94 @@
+
+
+export enum FilterType {
+        lowpass,
+        Highpass,
+        bandpass,
+        lowshelf,
+        highshelf,
+        peaking,
+}
+
+
+
+export struct EqFilter {
+    type: FilterType,
+    frequency: float,
+    gain: float,
+    q: float,
+    enabled: bool,
+    selected: bool,
+}
+
+export global EQManagerUI {
+    
+    in-out property <[EqFilter]> eq_filters;
+
+    callback update(int);
+}
+
+export component FrequencyController {
+    
+    in-out property <float> frequency;
+    in-out property <bool> huge_frequency;
+    out property <int> id;
+    width: 200px;
+    height: 40px;
+
+    Rectangle {
+        background: #b7bed2;    
+    }
+    HorizontalLayout {
+        text-input := TextInput {
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            text: frequency;
+            width: 40px;
+            height: 40px;
+            touch-area := TouchArea {
+                clicked => { 
+                    text-input.focus();
+                }
+            }
+            accepted => {
+                EQManagerUI.eq_filters[id].frequency;
+                EQManagerUI.update(id);
+                self.clear-focus();
+            }
+        }
+        Text {
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            text: huge_frequency ? "Hz" : "kHz";
+            width: 40px;
+            height: 40px;
+        }
+        test := Text {
+            
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            text: EQManagerUI.eq_filters[id].frequency;
+            width: 40px;
+            height: 40px;
+        }
+    }
+    
+}
+
+export component GainController {}
+    
+
+
+export component FilterControlStrip inherits Window{
+    width: 800px;
+    height: 600px;
+    background: #353c51;
+    title: "TheEQfromBelow";
+    HorizontalLayout {
+        FrequencyController {
+            width: 200px;
+            height: 40px;
+        }
+    }
+    visible: true;
+}
