@@ -1,6 +1,6 @@
 
 
-export enum FilterType {
+export enum EQFilterType {
         lowpass,
         Highpass,
         bandpass,
@@ -12,7 +12,7 @@ export enum FilterType {
 
 
 export struct EqFilter {
-    type: FilterType,
+    filter_type: EQFilterType,
     frequency: float,
     gain: float,
     q: float,
@@ -21,17 +21,22 @@ export struct EqFilter {
 }
 
 export global EQManagerUI {
-    
-    in-out property <[EqFilter]> eq_filters;
+    in-out property <[EqFilter]> eq_filters: [{filter_type: EQFilterType.lowpass, frequency: 1000.0, gain: 0.0, q: 0.0, enabled: true, selected: false}];
+    in-out property <float> test;
+    pure callback update_freq(int, float);
+    pure callback set_filter_frequency(int, float);
 
-    callback update(int);
+    
 }
+
+
+
 
 export component FrequencyController {
     
     in-out property <float> frequency;
     in-out property <bool> huge_frequency;
-    out property <int> id;
+    in-out property <int> id;
     width: 200px;
     height: 40px;
 
@@ -52,7 +57,7 @@ export component FrequencyController {
             }
             accepted => {
                 EQManagerUI.eq_filters[id].frequency;
-                EQManagerUI.update(id);
+                EQManagerUI.set_filter_frequency(id, text-input.text.to-float());
                 self.clear-focus();
             }
         }
@@ -86,6 +91,22 @@ export component FilterControlStrip inherits Window{
     title: "TheEQfromBelow";
     HorizontalLayout {
         FrequencyController {
+            width: 200px;
+            height: 40px;
+        }
+    }
+    visible: true;
+}
+
+export component TestWindow inherits Window {
+    width: 800px;
+    height: 600px;
+    background: #353c51;
+    title: "TheEQfromBelow";
+    HorizontalLayout {
+        FrequencyController {
+            frequency: EQManagerUI.eq_filters[0].frequency;
+            id: 0;
             width: 200px;
             height: 40px;
         }
