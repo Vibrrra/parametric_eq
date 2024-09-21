@@ -1,5 +1,6 @@
 
 
+import { EQGraphManager } from "eq_canvas.slint";
 export enum EQFilterType {
         lowpass,
         Highpass,
@@ -9,6 +10,13 @@ export enum EQFilterType {
         peaking,
 }
 
+export enum FilterControlType{
+    frequency,
+    gain,
+    q,
+    enabled,
+    selected,
+}
 
 
 export struct EqFilter {
@@ -18,15 +26,61 @@ export struct EqFilter {
     q: float,
     enabled: bool,
     selected: bool,
+    curve: string,
+    circle_x: length,
+    circle_y: length,
 }
 
-export global EQManagerUI {
-    in-out property <[EqFilter]> eq_filters: [{filter_type: EQFilterType.lowpass, frequency: 1000.0, gain: 0.0, q: 0.0, enabled: true, selected: false}];
-    in-out property <float> test;
-    pure callback update_freq(int, float);
-    pure callback set_filter_frequency(int, float);
+export global EQManagerSettings {
 
+    in-out property <float> skew_factor: 0.3;
+    in-out property <float> max_gain: 30.0;
+    in-out property <float> max_freq: 20000.0;
+    in-out property <float> min_freq: 20.0;
+    in-out property <length> eq_graph_height: 800px;
+    in-out property <length> eq_graph_width: 400px;
+
+}
+
+
+export global EQManagerUI {
+
+    in-out property <[EqFilter]> eq_filters: [
+        {filter_type: EQFilterType.lowpass, frequency: 1000.0, gain: 0.0, q: 0.0, enabled: true, selected: false, curve: "M 0 200 L 400 0 L 800 0"},
+        {filter_type: EQFilterType.lowpass, frequency: 1000.0, gain: 0.0, q: 0.0, enabled: true, selected: false, curve: "M 0 200 L 400 400 L 800 0"}];
+    in-out property <float> test;
+    in-out property <int> selected_filter;
     
+    pure callback set_filter_frequency(int, float);
+    pure callback set_filter_gain(int, float);
+    pure callback set_filter_q(int, float);
+    pure callback set_filter_enabled(int, bool);
+    pure callback set_filter_selected(int, bool);
+    pure callback set_filter_type(int, EQFilterType);     
+    pure callback select_nearest_draggable(length, length);
+
+    callback mx_to_gain(float) -> float;
+    mx_to_gain(y_g) => {
+        EQManagerSettings.max_gain  * (EQManagerSettings.eq_graph_height/2px - y_g) / (EQManagerSettings.eq_graph_height/2px);
+    }
+    callback gain_to_mx(float) -> float;
+    gain_to_mx(float) => {
+        EQManagerSettings.eq_graph_height/2px - (EQManagerSettings.eq_graph_height/2px * (float / EQManagerSettings.max_gain));
+    }
+    
+    pure callback lin_to_f_skew(float) -> float;
+    lin_to_f_skew(x) => {
+        EQManagerSettings.min_freq 
+        + (EQManagerSettings.max_freq - EQManagerSettings.min_freq) 
+        * pow( x / (EQManagerSettings.eq_graph_width/1px), 1.0 / EQManagerSettings.skew_factor)   
+    }
+
+    pure callback f_to_lin_skew(float) -> float;
+    f_to_lin_skew(y) => {
+        (EQManagerSettings.eq_graph_width/1px - 1) 
+        * pow((y - EQManagerSettings.min_freq) / (EQManagerSettings.max_freq - EQManagerSettings.min_freq), 
+            EQManagerSettings.skew_factor)
+    }
 }
 
 
@@ -57,7 +111,6 @@ export component FrequencyController {
             }
             accepted => {
                 EQManagerUI.eq_filters[id].frequency;
-                EQManagerUI.set_filter_frequency(id, text-input.text.to-float());
                 self.clear-focus();
             }
         }
@@ -68,11 +121,41 @@ export component FrequencyController {
             width: 40px;
             height: 40px;
         }
-        test := Text {
-            
+    }
+    
+}
+export component GainController {
+    
+    in-out property <float> gain;
+    in-out property <int> id;
+    width: 200px;
+    height: 40px;
+
+    Rectangle {
+        background: #b7bed2;    
+    }
+    HorizontalLayout {
+        text-input := TextInput {
             vertical-alignment: center;
             horizontal-alignment: center;
-            text: EQManagerUI.eq_filters[id].frequency;
+            text: gain;
+            width: 40px;
+            height: 40px;
+            touch-area := TouchArea {
+                clicked => { 
+                    text-input.focus();
+                }
+            }
+            accepted => {
+                EQManagerUI.eq_filters[id].gain;
+                EQManagerUI.set_filter_gain(id, text-input.text.to-float());
+                self.clear-focus();
+            }
+        }
+        Text {
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            text: "dB";
             width: 40px;
             height: 40px;
         }
@@ -80,7 +163,43 @@ export component FrequencyController {
     
 }
 
-export component GainController {}
+export component QController {
+        
+        in-out property <float> q;
+        in-out property <int> id;
+        width: 200px;
+        height: 40px;
+    
+        Rectangle {
+            background: #b7bed2;    
+        }
+        HorizontalLayout {
+            Text {
+                vertical-alignment: center;
+                horizontal-alignment: center;
+                text: "Q: ";
+                width: 40px;
+                height: 40px;
+            }
+            text-input := TextInput {
+                vertical-alignment: center;
+                horizontal-alignment: center;
+                text: q;
+                width: 40px;
+                height: 40px;
+                touch-area := TouchArea {
+                    clicked => { 
+                        text-input.focus();
+                    }
+                }
+                accepted => {
+                    EQManagerUI.eq_filters[id].q;
+                    EQManagerUI.set_filter_q(id, text-input.text.to-float());
+                    self.clear-focus();
+                }
+            }
+        }
+}
     
 
 
@@ -98,18 +217,139 @@ export component FilterControlStrip inherits Window{
     visible: true;
 }
 
+
+export component EQCanvas {
+    
+  
+    touch-area := TouchArea {
+        
+        property <length> pressed-value-x: self.pressed-x;
+        property <length> pressed-value-y: self.pressed-y;
+        
+        pointer-event(event) => {
+
+            // if event.button == PointerEventButton.left && event.kind == PointerEventKind.down {
+            if event.kind == PointerEventKind.down {
+                EQManagerUI.select_nearest_draggable(touch-area.mouse-x, touch-area.mouse-y)
+            } 
+        }
+            
+        // clicked => {
+
+        // }
+
+        moved => {
+        
+            if EQManagerUI.selected_filter != -1 {                
+                EQManagerUI.eq_filters[EQManagerUI.selected_filter].circle_x = clamp((pressed-value-x + (touch-area.mouse-x - touch-area.pressed-value-x)), 0, parent.width );
+                EQManagerUI.eq_filters[EQManagerUI.selected_filter].circle_y = clamp((pressed-value-y + (touch-area.mouse-y - touch-area.pressed-value-y)), 0, parent.height);            
+                EQManagerUI.set_filter_frequency(
+                    EQManagerUI.selected_filter, 
+                    // EQManagerUI.eq_filters[EQManagerUI.selected_filter].circle_x / 1px
+                    EQManagerUI.lin_to_f_skew(EQManagerUI.eq_filters[EQManagerUI.selected_filter].circle_x / 1px)
+                );        
+            }
+
+        }
+    }
+    
+
+    for filter in EQManagerUI.eq_filters:
+    Rectangle { 
+        // background: yellow;
+        width: 800px;
+        height: 400px;
+        
+        // Curve
+        Path {
+            viewbox-x: 0;
+            viewbox-y: 0;
+            viewbox-width: 800;
+            viewbox-height: 400;
+            stroke: black;
+            stroke-width: 1px;
+            commands: filter.curve;
+        }
+
+        // Draw a Circle width radius 15
+        Rectangle {
+            x: filter.circle_x - 15px;
+            y: filter.circle_y - 15px;
+            width: 30px;
+            height: self.width;
+            Rectangle {
+                // x: parent.x - self.width/ 4;
+                // y: parent.y - self.height/4;
+                width: 30px;
+                height: self.width;
+                border-radius: self.width/2;
+                background: #914f4f;
+            }
+        }
+        
+    }
+
+}   
+
+
 export component TestWindow inherits Window {
     width: 800px;
     height: 600px;
     background: #353c51;
     title: "TheEQfromBelow";
-    HorizontalLayout {
-        FrequencyController {
-            frequency: EQManagerUI.eq_filters[0].frequency;
-            id: 0;
-            width: 200px;
-            height: 40px;
+    VerticalLayout {
+        Text {width: 800px; height: 50px; text : EQManagerUI.selected_filter;}
+        eq-canvas := EQCanvas {
+            width: 800px;
+            height: 400px;
         }
+        for id in [0,1,2,4]:
+            Rectangle {   
+            HorizontalLayout {
+                width: 400px;
+                FrequencyController {
+                    frequency: EQManagerUI.eq_filters[id].frequency;
+                    id: id;
+                    width: 200px;
+                    height: 40px;
+                }
+
+                GainController {
+                    gain: EQManagerUI.eq_filters[0].gain;
+                    id: id;
+                    width: 150px;
+                    height: 40px;
+                }
+
+                QController {
+                    q: EQManagerUI.eq_filters[0].q;
+                    id: id;
+                    width: 80px;
+                    height: 40px;
+                }
+        }
+    }
+
+    // HorizontalLayout {
+    //     FrequencyController {
+    //         frequency: EQManagerUI.eq_filters[0].frequency;
+    //         id: 1;
+    //         width: 200px;
+    //         height: 40px;
+    //     }
+    //     GainController {
+    //         gain: EQManagerUI.eq_filters[0].gain;
+    //         id: 1;
+    //         width: 200px;
+    //         height: 40px;
+    //     }
+    //     QController {
+    //         q: EQManagerUI.eq_filters[0].q;
+    //         id: 1;
+    //         width: 200px;
+    //         height: 40px;
+    //     }
+    // }
     }
     visible: true;
 }

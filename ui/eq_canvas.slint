@@ -636,8 +636,10 @@ export component EQCanvas inherits Rectangle {
                 stroke-width: 1.5px;
                 fill: #8884c3;
             }
-            for eq_curve in EQGraphManager.eq_curve_data: 
-                Path {  
+            for eq_curve[i] in EQGraphManager.eq_curve_data: 
+                
+                Path { 
+
                     width: 100%;
                     height: 100%;                    
                     viewbox-height: EQGraphManager.eq_graph_height/2px;
