@@ -77,7 +77,7 @@ fn main() {
     // ui.run();
 
     let mut app = test::AppHandler::new();
-    app.init();
+    let rx = app.init();
 
     app.run();
 }

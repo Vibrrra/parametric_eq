@@ -1,12 +1,14 @@
 
 
 import { EQGraphManager } from "eq_canvas.slint";
-export enum EQFilterType {
+import { HorizontalBox } from "std-widgets.slint";
+export enum EQFilterTypeEnum {
         lowpass,
-        Highpass,
+        highpass,
         bandpass,
         lowshelf,
         highshelf,
+        notch,
         peaking,
 }
 
@@ -18,6 +20,10 @@ export enum FilterControlType{
     selected,
 }
 
+export struct EQFilterType {
+    str: string,
+    type: EQFilterTypeEnum,
+}
 
 export struct EqFilter {
     filter_type: EQFilterType,
@@ -33,24 +39,48 @@ export struct EqFilter {
 
 export global EQManagerSettings {
 
+    in-out property <float> sample_rate: 48000.0; 
+    in-out property <int> num_freq_points: 250;
     in-out property <float> skew_factor: 0.3;
     in-out property <float> max_gain: 30.0;
     in-out property <float> max_freq: 20000.0;
     in-out property <float> min_freq: 20.0;
-    in-out property <length> eq_graph_height: 800px;
-    in-out property <length> eq_graph_width: 400px;
+    in-out property <length> eq_graph_height: 400px;
+    in-out property <length> eq_graph_width: 800px;
 
+    in-out property <[EqFilter]> eq_filters:
+        [{filter_type: EQManagerSettings.list-of-filter-types[5], frequency: 50.0,   gain: 0.0, q: 1.0, enabled: true,  selected: false, curve: "M 0 0 L 400 200 L 800 0"}, 
+         {filter_type: EQManagerSettings.list-of-filter-types[5], frequency: 100.0,  gain: 0.0, q: 1.0, enabled: false, selected: false},
+         {filter_type: EQManagerSettings.list-of-filter-types[5], frequency: 200.0,  gain: 0.0, q: 1.0, enabled: false, selected: false},
+         {filter_type: EQManagerSettings.list-of-filter-types[5], frequency: 500.0,  gain: 0.0, q: 1.0, enabled: false, selected: false},
+         {filter_type: EQManagerSettings.list-of-filter-types[5], frequency: 1000.0, gain: 0.0, q: 1.0, enabled: false, selected: false},
+         {filter_type: EQManagerSettings.list-of-filter-types[5], frequency: 2000.0, gain: 0.0, q: 1.0, enabled: false, selected: false},
+         {filter_type: EQManagerSettings.list-of-filter-types[5], frequency: 4000.0, gain: 0.0, q: 1.0, enabled: false, selected: false},
+         {filter_type: EQManagerSettings.list-of-filter-types[5], frequency: 8000.0, gain: 0.0, q: 1.0, enabled: false, selected: false},
+    ]; 
+
+    out property<[{str: string, type: EQFilterTypeEnum}]> list-of-filter-types: 
+        [{str: "LowPass"  , type: EQFilterTypeEnum.lowpass,  }, 
+         {str: "HighPass" , type: EQFilterTypeEnum.highpass, },
+         {str: "BandPass" , type: EQFilterTypeEnum.bandpass, },
+         {str: "PeakingEQ", type: EQFilterTypeEnum.peaking,}, 
+         {str: "LowShelf" , type: EQFilterTypeEnum.lowshelf, },
+         {str: "HighShelf", type: EQFilterTypeEnum.highshelf,}
+    ];
 }
 
 
 export global EQManagerUI {
 
-    in-out property <[EqFilter]> eq_filters: [
-        {filter_type: EQFilterType.lowpass, frequency: 1000.0, gain: 0.0, q: 0.0, enabled: true, selected: false, curve: "M 0 200 L 400 0 L 800 0"},
-        {filter_type: EQFilterType.lowpass, frequency: 1000.0, gain: 0.0, q: 0.0, enabled: true, selected: false, curve: "M 0 200 L 400 400 L 800 0"}];
+    in-out property <[EqFilter]> eq_filters; 
+    // [
+    //     {filter_type: EQFilterType.lowpass, frequency: 1000.0, gain: 0.0, q: 0.0, enabled: true, selected: false, curve: "M 0 200 L 400 0 L 800 0"},
+    //     {filter_type: EQFilterType.lowpass, frequency: 1000.0, gain: 0.0, q: 0.0, enabled: true, selected: false, curve: "M 0 200 L 400 400 L 800 0"}];
     in-out property <float> test;
     in-out property <int> selected_filter;
     
+    pure callback init_eq_filters();
+
     pure callback set_filter_frequency(int, float);
     pure callback set_filter_gain(int, float);
     pure callback set_filter_q(int, float);
@@ -58,6 +88,7 @@ export global EQManagerUI {
     pure callback set_filter_selected(int, bool);
     pure callback set_filter_type(int, EQFilterType);     
     pure callback select_nearest_draggable(length, length);
+    pure callback calculate_filter_coefficients(int);
 
     callback mx_to_gain(float) -> float;
     mx_to_gain(y_g) => {
@@ -85,6 +116,67 @@ export global EQManagerUI {
 
 
 
+export component FilterTypeSelectorPopUp inherits PopupWindow {
+    close-on-click: false;
+    Rectangle {
+        background: #b7bed2;
+        width: parent.width;
+        height: parent.height;
+        
+        VerticalLayout {
+            for filter_type in EQManagerSettings.list-of-filter-types:
+                Rectangle {
+                    width: parent.width;
+                    height: 40px;
+                    touch-area := TouchArea {
+                        clicked => {
+                            EQManagerUI.eq_filters[EQManagerUI.selected_filter].filter_type = filter_type;
+                            EQManagerUI.set_filter_type(EQManagerUI.selected_filter, filter_type);
+                            root.close();
+                        }
+                    }
+                    Text {
+                        width: parent.width;
+                        height: parent.height;
+                        text: filter_type.str;
+                    }
+                } 
+        }
+    }
+}
+
+export component FilterTypeSelector {
+    in-out property <int> id;
+    in-out property <bool> popup;
+    Rectangle {
+        background: #0f3ec0;
+        width: 200px;
+        height: 40px;
+    }
+    touch-area:= TouchArea {
+        clicked => {
+            popup.show();
+        }
+    }
+    
+    HorizontalLayout {
+        Text {
+            text: EQManagerUI.eq_filters[id].filter_type.str;
+            width: 100px;
+            height: 40px;
+        }    
+    }
+    popup := FilterTypeSelectorPopUp {
+        x: parent.x + parent.width;
+        y: parent.y - parent.height * 3;
+        width: parent.width;
+        height: parent.height * 7;
+    }
+
+}
+
+    
+
 
 export component FrequencyController {
     
@@ -97,6 +189,7 @@ export component FrequencyController {
     Rectangle {
         background: #b7bed2;    
     }
+
     HorizontalLayout {
         text-input := TextInput {
             vertical-alignment: center;
@@ -207,10 +300,30 @@ export component FilterControlStrip inherits Window{
     width: 800px;
     height: 600px;
     background: #353c51;
+    in-out property <int> id;
     title: "TheEQfromBelow";
     HorizontalLayout {
+        FilterTypeSelector {
+
+        }
+
         FrequencyController {
-            width: 200px;
+            frequency: EQManagerUI.eq_filters[id].frequency;
+            id: id;
+            width: 120px;
+            height: 40px;
+
+        }
+        GainController {
+            gain: EQManagerUI.eq_filters[id].gain;
+            id: id;
+            width: 100px;
+            height: 40px;
+        }
+        QController {
+            q: EQManagerUI.eq_filters[id].q;
+            id: id;
+            width: 80px;
             height: 40px;
         }
     }
@@ -220,7 +333,9 @@ export component FilterControlStrip inherits Window{
 
 export component EQCanvas {
     
-  
+    Rectangle {
+        background: #b792ae;
+    }
     touch-area := TouchArea {
         
         property <length> pressed-value-x: self.pressed-x;
@@ -247,7 +362,12 @@ export component EQCanvas {
                     EQManagerUI.selected_filter, 
                     // EQManagerUI.eq_filters[EQManagerUI.selected_filter].circle_x / 1px
                     EQManagerUI.lin_to_f_skew(EQManagerUI.eq_filters[EQManagerUI.selected_filter].circle_x / 1px)
+                );
+                EQManagerUI.set_filter_gain(
+                    EQManagerUI.selected_filter, 
+                    EQManagerUI.mx_to_gain(EQManagerUI.eq_filters[EQManagerUI.selected_filter].circle_y / 1px)
                 );        
+                EQManagerUI.calculate_filter_coefficients(EQManagerUI.selected_filter);
             }
 
         }
@@ -263,7 +383,7 @@ export component EQCanvas {
         // Curve
         Path {
             viewbox-x: 0;
-            viewbox-y: 0;
+            viewbox-y: -200;
             viewbox-width: 800;
             viewbox-height: 400;
             stroke: black;
@@ -292,6 +412,7 @@ export component EQCanvas {
 }   
 
 
+
 export component TestWindow inherits Window {
     width: 800px;
     height: 600px;
@@ -300,56 +421,28 @@ export component TestWindow inherits Window {
     VerticalLayout {
         Text {width: 800px; height: 50px; text : EQManagerUI.selected_filter;}
         eq-canvas := EQCanvas {
-            width: 800px;
-            height: 400px;
+            width: EQManagerSettings.eq_graph_width;//  800px;
+            height: EQManagerSettings.eq_graph_height;//;
         }
-        for id in [0,1,2,4]:
-            Rectangle {   
-            HorizontalLayout {
-                width: 400px;
-                FrequencyController {
-                    frequency: EQManagerUI.eq_filters[id].frequency;
-                    id: id;
-                    width: 200px;
-                    height: 40px;
+        
+        HorizontalLayout {
+            VerticalLayout {    
+                for id in [0,1,2,3]:
+                    Rectangle {   
+                        FilterControlStrip { id: id;}      
+                    }
+            }
+            VerticalLayout {
+                for id in [4,5,6,7]:
+                Rectangle {   
+                    FilterControlStrip { id: id;}      
                 }
-
-                GainController {
-                    gain: EQManagerUI.eq_filters[0].gain;
-                    id: id;
-                    width: 150px;
-                    height: 40px;
-                }
-
-                QController {
-                    q: EQManagerUI.eq_filters[0].q;
-                    id: id;
-                    width: 80px;
-                    height: 40px;
-                }
+            }
+            }
         }
-    }
 
-    // HorizontalLayout {
-    //     FrequencyController {
-    //         frequency: EQManagerUI.eq_filters[0].frequency;
-    //         id: 1;
-    //         width: 200px;
-    //         height: 40px;
-    //     }
-    //     GainController {
-    //         gain: EQManagerUI.eq_filters[0].gain;
-    //         id: 1;
-    //         width: 200px;
-    //         height: 40px;
-    //     }
-    //     QController {
-    //         q: EQManagerUI.eq_filters[0].q;
-    //         id: 1;
-    //         width: 200px;
-    //         height: 40px;
-    //     }
-    // }
-    }
-    visible: true;
+     
+
 }
+//     visible: true;
+// }
