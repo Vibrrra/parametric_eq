@@ -59,12 +59,6 @@ pub fn gain_to_my(gain: f32, eq_graph_height: f32, max_gain: f32) -> f32 {
 
 
 
-// pub struct FrequencyController {}
-// impl FrequencyController {
-//     pub fn init(&self) {
-//         let ha;
-//     }
-// }
 
 pub struct EqControl {}
 
@@ -73,6 +67,8 @@ impl EqControl {
     pub fn init(&self, handle: &TestWindow, tx: std::sync::mpsc::Sender<Coefficients<f32>>) {
         let eq_manager = handle.global::<EQManagerUI>();
         let _eq_settings = handle.global::<EQManagerSettings>();
+        
+        
         
         eq_manager.set_test(32.0);
 
@@ -122,8 +118,11 @@ impl EqControl {
                 let wu = ww.upgrade().unwrap();
                 let filters  = wu.global::<EQManagerUI>().get_eq_filters();
                 let mut filter = filters.row_data(id as usize).unwrap();
-                filter.frequency = freq;
+                
+                filter.frequency = freq.clamp(wu.global::<EQManagerSettings>().get_min_freq(), wu.global::<EQManagerSettings>().get_max_freq());
+                filter.huge_frequency = freq > 10000.0;
                 filters.set_row_data(id as usize, filter);
+                
         }}
         );
 
@@ -133,7 +132,7 @@ impl EqControl {
                 let wu = ww.upgrade().unwrap();
                 let filters  = wu.global::<EQManagerUI>().get_eq_filters();
                 let mut filter = filters.row_data(id as usize).unwrap();
-                filter.gain = gain;
+                filter.gain = gain.clamp(-wu.global::<EQManagerSettings>().get_max_gain(), wu.global::<EQManagerSettings>().get_max_gain());
                 filters.set_row_data(id as usize, filter);
         }}
         );
@@ -143,7 +142,7 @@ impl EqControl {
                 let wu = ww.upgrade().unwrap();
                 let filters  = wu.global::<EQManagerUI>().get_eq_filters();
                 let mut filter = filters.row_data(id as usize).unwrap();
-                filter.q = q;
+                filter.q = q.clamp(wu.global::<EQManagerSettings>().get_min_q(), wu.global::<EQManagerSettings>().get_max_q());
                 filters.set_row_data(id as usize, filter);
         }}
         );
@@ -229,7 +228,7 @@ impl EqControl {
                             (x.0 as f32 
                                 / wu.global::<EQManagerSettings>().get_num_freq_points() as f32 
                                 * wu.global::<EQManagerSettings>().get_eq_graph_width(),
-                                wu.global::<EQManagerSettings>().get_max_gain()- x.1 
+                                /* wu.global::<EQManagerSettings>().get_max_gain() */ - x.1 
                                 / wu.global::<EQManagerSettings>().get_max_gain() 
                                 * wu.global::<EQManagerSettings>().get_eq_graph_height() / 2.0 )
                         }).collect();
