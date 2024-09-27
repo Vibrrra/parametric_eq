@@ -28,17 +28,15 @@ pub struct AppHandler {
 } 
 
 impl AppHandler {
-    pub fn new() -> Self {
-        
-        // self.weather_display_controller.initialize_ui(&window, self.support_add_city);
-        
-        
+    
+    pub fn new() -> Self {      
         AppHandler {
             handler: None,
             eq_control: EqControl {  },
         
         }
     }   
+
     pub fn init(&mut self){
         let window = TestWindow::new().expect("Cannot create main window!");
         let (tx, rx) = std::sync::mpsc::channel();
@@ -59,23 +57,29 @@ pub fn gain_to_my(gain: f32, eq_graph_height: f32, max_gain: f32) -> f32 {
 
 }
 
-pub struct EqControl {
-    
-}
+
+
+// pub struct FrequencyController {}
+// impl FrequencyController {
+//     pub fn init(&self) {
+//         let ha;
+//     }
+// }
+
+pub struct EqControl {}
 
 impl EqControl {
     
     pub fn init(&self, handle: &TestWindow, tx: std::sync::mpsc::Sender<Coefficients<f32>>) {
         let eq_manager = handle.global::<EQManagerUI>();
-        let eq_settings = handle.global::<EQManagerSettings>();
+        let _eq_settings = handle.global::<EQManagerSettings>();
         
         eq_manager.set_test(32.0);
+
         eq_manager.on_init_eq_filters({
             let ww = handle.as_weak();
 
             move || {
-        //         let the_model : Rc<VecModel<SharedString>> =
-        // Rc::new(VecModel::from(vec!["Hello".into(), "World".into()]));
                 let wu = ww.upgrade().unwrap();
                 
                 let eq_filter: Vec<EqFilter> = Vec::new();
@@ -242,7 +246,5 @@ impl EqControl {
         eq_manager.invoke_init_eq_filters();
     }
 }
-
-
 
 fn do_smthing(handle: &Weak<TestWindow>) {}

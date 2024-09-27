@@ -1,6 +1,6 @@
 
 
-import { EQGraphManager } from "eq_canvas.slint";
+import { EQGraphManager, EQDesign } from "eq_canvas.slint";
 import { HorizontalBox } from "std-widgets.slint";
 export enum EQFilterTypeEnum {
         lowpass,
@@ -78,7 +78,8 @@ export global EQManagerUI {
     //     {filter_type: EQFilterType.lowpass, frequency: 1000.0, gain: 0.0, q: 0.0, enabled: true, selected: false, curve: "M 0 200 L 400 400 L 800 0"}];
     in-out property <float> test;
     in-out property <int> selected_filter;
-    
+    in-out property <bool> huge_frequency;
+    in-out property <string> selected_frequency;
     pure callback init_eq_filters();
 
     pure callback set_filter_frequency(int, float);
@@ -87,6 +88,18 @@ export global EQManagerUI {
     pure callback set_filter_enabled(int, bool);
     pure callback set_filter_selected(int, bool);
     pure callback set_filter_type(int, EQFilterType);     
+
+    callback parse-frequency(int, float) -> float;
+    parse-frequency(freq) => {
+        if freq > 10000 {
+            huge_frequency = true;
+            eq_filters[id].f
+            round(10000 / 100) / 10;
+        } else {
+            round(freq/10) *10;
+        }
+    }
+    
     pure callback select_nearest_draggable(length, length);
     pure callback calculate_filter_coefficients(int);
 
@@ -118,6 +131,7 @@ export global EQManagerUI {
 
 export component FilterTypeSelectorPopUp inherits PopupWindow {
     close-on-click: false;
+    in-out property <int> id;
     Rectangle {
         background: #b7bed2;
         width: parent.width;
@@ -128,17 +142,28 @@ export component FilterTypeSelectorPopUp inherits PopupWindow {
                 Rectangle {
                     width: parent.width;
                     height: 40px;
+                    background: touch-area.has-hover? #e1d2b0 : #b7bed2;    
                     touch-area := TouchArea {
                         clicked => {
-                            EQManagerUI.eq_filters[EQManagerUI.selected_filter].filter_type = filter_type;
-                            EQManagerUI.set_filter_type(EQManagerUI.selected_filter, filter_type);
+                            EQManagerUI.eq_filters[id].filter_type = filter_type;
+                            EQManagerUI.set_filter_type(id, filter_type);
                             root.close();
                         }
                     }
+                    
+                    // Render-Text for Filter Selection
                     Text {
+
+                        vertical-alignment: center;
+                        horizontal-alignment: center;   
+
+                        font-family: EQDesign.main-font;
+                        font-size: EQDesign.font-main-size;
+
                         width: parent.width;
                         height: parent.height;
                         text: filter_type.str;
+
                     }
                 } 
         }
@@ -160,16 +185,27 @@ export component FilterTypeSelector {
     }
     
     HorizontalLayout {
+
+        // Render-Text for selected FilterType
         Text {
+            horizontal-alignment: center;
+            vertical-alignment: center;
+
+            font-family: EQDesign.main-font;
+            font-size: EQDesign.font-main-size;
+
             text: EQManagerUI.eq_filters[id].filter_type.str;
             width: 100px;
             height: 40px;
         }    
     }
+
+    // pop-up mechanism
     popup := FilterTypeSelectorPopUp {
+        id: id;
         x: parent.x + parent.width;
-        y: parent.y - parent.height * 3;
-        width: parent.width;
+        y: parent.y - parent.height * 5;
+        width:  parent.width;
         height: parent.height * 7;
     }
 
@@ -180,10 +216,11 @@ export component FilterTypeSelector {
 
 export component FrequencyController {
     
-    in-out property <float> frequency;
-    in-out property <bool> huge_frequency;
+    in-out property <string> frequency;
+    in-out property <bool> huge_frequency: EQManagerUI.huge_frequency;
     in-out property <int> id;
-    width: 200px;
+    
+    width: 100px;
     height: 40px;
 
     Rectangle {
@@ -191,28 +228,45 @@ export component FrequencyController {
     }
 
     HorizontalLayout {
+
+        // Render-Text for frequency edit
         text-input := TextInput {
+            
+            width: 60px;
+            height: 40px;            
             vertical-alignment: center;
-            horizontal-alignment: center;
+            horizontal-alignment: right;
+            
+            font-family: EQDesign.main-font;
+            font-size: EQDesign.font-main-size;
+
             text: frequency;
-            width: 40px;
-            height: 40px;
+
             touch-area := TouchArea {
                 clicked => { 
                     text-input.focus();
+
                 }
             }
+            
             accepted => {
                 EQManagerUI.eq_filters[id].frequency;
+                self.text = EQManagerUI.parse-frequency(text-input.text.to-float());
                 self.clear-focus();
             }
         }
+
+        // Render-Text frequency unit
         Text {
             vertical-alignment: center;
             horizontal-alignment: center;
-            text: huge_frequency ? "Hz" : "kHz";
+            
+            font-family: EQDesign.main-font;
+            font-size: EQDesign.font-main-size;
+
+            text: huge_frequency ? "kHz" : "Hz";
             width: 40px;
-            height: 40px;
+            height: 40px;   
         }
     }
     
@@ -230,8 +284,11 @@ export component GainController {
     HorizontalLayout {
         text-input := TextInput {
             vertical-alignment: center;
-            horizontal-alignment: center;
-            text: gain;
+            horizontal-alignment: right;
+
+            font-family: EQDesign.main-font;
+            font-size: EQDesign.font-main-size;
+            text: round(gain*10) / 10;
             width: 40px;
             height: 40px;
             touch-area := TouchArea {
@@ -245,9 +302,14 @@ export component GainController {
                 self.clear-focus();
             }
         }
+
         Text {
             vertical-alignment: center;
             horizontal-alignment: center;
+
+            font-family: EQDesign.main-font;
+            font-size: EQDesign.font-main-size;
+
             text: "dB";
             width: 40px;
             height: 40px;
@@ -260,7 +322,7 @@ export component QController {
         
         in-out property <float> q;
         in-out property <int> id;
-        width: 200px;
+        width:  80px;
         height: 40px;
     
         Rectangle {
@@ -270,6 +332,10 @@ export component QController {
             Text {
                 vertical-alignment: center;
                 horizontal-alignment: center;
+
+                font-family: EQDesign.main-font;
+                font-size: EQDesign.font-main-size;
+
                 text: "Q: ";
                 width: 40px;
                 height: 40px;
@@ -304,11 +370,14 @@ export component FilterControlStrip inherits Window{
     title: "TheEQfromBelow";
     HorizontalLayout {
         FilterTypeSelector {
-
+            width: 120px;
+            height: 40px;
+            id: id;
         }
 
         FrequencyController {
-            frequency: EQManagerUI.eq_filters[id].frequency;
+            frequency: EQManagerUI.selected_frequency; //EQManagerUI.eq_filters[id].frequency;
+            huge_frequency: EQManagerUI.huge_frequency;
             id: id;
             width: 120px;
             height: 40px;
@@ -333,11 +402,16 @@ export component FilterControlStrip inherits Window{
 
 export component EQCanvas {
     
+    width:  800px;
+    height: 800px;
+    
     Rectangle {
         background: #b792ae;
     }
+
     touch-area := TouchArea {
-        
+        height: parent.height;
+        width:  parent.width;
         property <length> pressed-value-x: self.pressed-x;
         property <length> pressed-value-y: self.pressed-y;
         
@@ -373,13 +447,7 @@ export component EQCanvas {
         }
     }
     
-
-    for filter in EQManagerUI.eq_filters:
-    Rectangle { 
-        // background: yellow;
-        width: 800px;
-        height: 400px;
-        
+    for filter in EQManagerUI.eq_filters:  
         // Curve
         Path {
             viewbox-x: 0;
@@ -391,34 +459,44 @@ export component EQCanvas {
             commands: filter.curve;
         }
 
-        // Draw a Circle width radius 15
+    // Draw interactive filter control point 
+    for filter in EQManagerUI.eq_filters:
+        // Circle width radius 15
         Rectangle {
             x: filter.circle_x - 15px;
             y: filter.circle_y - 15px;
             width: 30px;
             height: self.width;
             Rectangle {
-                // x: parent.x - self.width/ 4;
-                // y: parent.y - self.height/4;
-                width: 30px;
+                width: parent.width;
                 height: self.width;
                 border-radius: self.width/2;
                 background: #914f4f;
             }
         }
-        
+    
+    Path {
+        stroke: black;
+        stroke-width: 2px;
+        commands: "M 0 0 L 100 0 L 700 0 L 800 190";
+        viewbox-x: 0;
+        viewbox-y: -200;
+        viewbox-height: 400;
+        viewbox-width: 800;
     }
-
 }   
 
 
 
 export component TestWindow inherits Window {
     width: 800px;
-    height: 600px;
+    height: 800px;  
     background: #353c51;
     title: "TheEQfromBelow";
     VerticalLayout {
+        spacing: 10px;
+
+
         Text {width: 800px; height: 50px; text : EQManagerUI.selected_filter;}
         eq-canvas := EQCanvas {
             width: EQManagerSettings.eq_graph_width;//  800px;
@@ -426,16 +504,20 @@ export component TestWindow inherits Window {
         }
         
         HorizontalLayout {
+            alignment: start;
             VerticalLayout {    
                 for id in [0,1,2,3]:
                     Rectangle {   
-                        FilterControlStrip { id: id;}      
+                        FilterControlStrip { id: id;
+                            width: 400px;}      
                     }
             }
             VerticalLayout {
+                alignment: start;
                 for id in [4,5,6,7]:
                 Rectangle {   
-                    FilterControlStrip { id: id;}      
+                    FilterControlStrip { id: id;
+                        width: 400px;}      
                 }
             }
             }

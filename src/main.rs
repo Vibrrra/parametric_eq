@@ -73,12 +73,11 @@ const N_FILTERS: usize = 8;
 fn main() {
     // let ui = ui::TestWindow::new().unwrap();
     // let ui_weak = ui.as_weak().unwrap();
-
+    
     // ui.run();
 
     let mut app = test::AppHandler::new();
     let rx = app.init();
-
     app.run();
 }
 
