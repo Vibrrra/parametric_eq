@@ -42,7 +42,7 @@ export struct EqFilter {
 export global EQManagerSettings {
 
     in-out property <float> sample_rate: 48000.0; 
-    in-out property <int> num_freq_points: 250;
+    in-out property <int> num_freq_points: 500;
     in-out property <float> skew_factor: 0.3;
     in-out property <float> max_gain: 30.0;
     in-out property <float> max_freq: 20000.0;
@@ -53,7 +53,7 @@ export global EQManagerSettings {
     in-out property <length> eq_graph_width: 800px;
 
     in-out property <[EqFilter]> eq_filters:
-        [{filter_type: EQManagerSettings.list-of-filter-types[5], frequency: 50.0,   gain: 0.0, q: 1.0, enabled: true,  selected: false, curve: "M 0 0 L 400 200 L 800 0"}, 
+        [{filter_type: EQManagerSettings.list-of-filter-types[5], frequency: 50.0,   gain: 0.0, q: 1.0, enabled: true,  selected: false}, //, curve: "M 0 0 L 400 200 L 800 0"}, 
          {filter_type: EQManagerSettings.list-of-filter-types[5], frequency: 100.0,  gain: 0.0, q: 1.0, enabled: false, selected: false},
          {filter_type: EQManagerSettings.list-of-filter-types[5], frequency: 200.0,  gain: 0.0, q: 1.0, enabled: false, selected: false},
          {filter_type: EQManagerSettings.list-of-filter-types[5], frequency: 500.0,  gain: 0.0, q: 1.0, enabled: false, selected: false},
@@ -71,6 +71,8 @@ export global EQManagerSettings {
          {str: "LowShelf" , type: EQFilterTypeEnum.lowshelf, },
          {str: "HighShelf", type: EQFilterTypeEnum.highshelf,}
     ];
+
+    
 }
 
 
@@ -84,6 +86,7 @@ export global EQManagerUI {
     in-out property <int> selected_filter;
     in-out property <bool> huge_frequency;
     in-out property <string> selected_frequency;
+    in-out property <string> eq_sum_curve;
     pure callback init_eq_filters();
 
     pure callback set_filter_frequency(int, float);
@@ -177,7 +180,7 @@ export component FilterTypeSelector {
     in-out property <int> id;
     in-out property <bool> popup;
     Rectangle {
-        background: #0f3ec0;
+        background: touch-area.has-hover ?  #b6bdd2 : #9ba8d0;
         width: 100px;
         height: 40px;
     }
@@ -223,13 +226,13 @@ export component FrequencyController {
     in-out property <string> frequency;
     in-out property <bool> huge_frequency: EQManagerUI.eq_filters[id].huge_frequency;// huge_frequency;
     in-out property <int> id;
-    width: 120px;
+    width: 100px;
     height: 40px;
 
     Rectangle {
-        background: #b7bed2;    
+        background: touch-area.has-hover ?  #b6bdd2 : #9ba8d0;   
     }
-
+    
     HorizontalLayout {
 
         // Render-Text for frequency edit
@@ -260,19 +263,6 @@ export component FrequencyController {
                 self.clear-focus();
             }
         }
-
-        // Render-Text frequency unit
-        // Text {
-        //     vertical-alignment: center;
-        //     horizontal-alignment: center;
-            
-        //     font-family: EQDesign.main-font;
-        //     font-size: EQDesign.font-main-size;
-
-        //     text: huge_frequency ? "kHz" : "Hz";
-        //     width: 40px;
-        //     height: 40px;   
-        // }
     }
     
 }
@@ -280,11 +270,11 @@ export component GainController {
     
     in-out property <float> gain;
     in-out property <int> id;
-    width: 200px;
+    width: 100px;
     height: 40px;
 
     Rectangle {
-        background: #b7bed2;    
+        background:touch-area.has-hover ?  #b6bdd2 : #9ba8d0;   
     }
     HorizontalLayout {
         text-input := TextInput {
@@ -293,8 +283,8 @@ export component GainController {
 
             font-family: EQDesign.main-font;
             font-size: EQDesign.font-main-size;
-            text: round(gain*10) / 10;
-            width: 40px;
+            text: round(gain*10) / 10 + " dB ";
+            width: parent.width;
             height: 40px;
             touch-area := TouchArea {
                 clicked => { 
@@ -309,17 +299,17 @@ export component GainController {
             }
         }
 
-        Text {
-            vertical-alignment: center;
-            horizontal-alignment: center;
+        // Text {
+        //     vertical-alignment: center;
+        //     horizontal-alignment: center;
 
-            font-family: EQDesign.main-font;
-            font-size: EQDesign.font-main-size;
+        //     font-family: EQDesign.main-font;
+        //     font-size: EQDesign.font-main-size;
 
-            text: "dB";
-            width: 40px;
-            height: 40px;
-        }
+        //     text: "dB";
+        //     width: 40px;
+        //     height: 40px;
+        // }
     }
     
 }
@@ -332,7 +322,7 @@ export component QController {
         height: 40px;
     
         Rectangle {
-            background: #b7bed2;    
+            background: touch-area.has-hover ?  #b6bdd2 : #9ba8d0;
         }
         HorizontalLayout {
            
@@ -359,7 +349,35 @@ export component QController {
         }
 }
     
-
+export component On-Off-Switch {
+    width: 40px;
+    height: 40px;
+    in-out property <int> id;
+    in-out property <bool> enabled;
+    Rectangle {
+        background: #9ba8d0;
+        
+    }
+    Rectangle {
+        x: 5px;
+        y: 5px;
+        width: 30px;
+        height: 30px;
+        border-radius: 15px;
+        // background: enabled ? #71cebb : #b6bdd2;// #9ba8d0;
+        background: enabled ?  (touch-area.has-hover ?  #a2f1e1 :#71cebb) : (touch-area.has-hover ? #9bc3d1:#b6bdd2);// #9ba8d0;
+        
+        opacity: enabled ? 1.0 : 0.5;
+    }
+    touch-area := TouchArea {
+        clicked => {
+            EQManagerUI.eq_filters[id].enabled = !EQManagerUI.eq_filters[id].enabled;
+            EQManagerUI.set_filter_enabled(id, EQManagerUI.eq_filters[id].enabled);
+            enabled = EQManagerUI.eq_filters[id].enabled;
+            EQManagerUI.calculate_filter_coefficients(id);
+        }
+    }
+}
 
 export component FilterControlStrip {
     width: 400px;
@@ -368,6 +386,14 @@ export component FilterControlStrip {
     in-out property <int> id;
     HorizontalLayout {
         alignment: center;
+
+        On-Off-Switch {
+            enabled: EQManagerUI.eq_filters[id].enabled;
+            id: id;
+            width: 40px;
+            height: 40px;
+        }
+
         FilterTypeSelector {
             width: 100px;
             height: 40px;
@@ -377,8 +403,9 @@ export component FilterControlStrip {
         FrequencyController {
             // frequency: EQManagerUI.eq_filters[id].frequency; //EQManagerUI.eq_filters[id].frequency;
             huge_frequency: EQManagerUI.eq_filters[id].huge_frequency;
+            frequency: EQManagerUI.eq_filters[id].frequency;
             id: id;
-            width: 100px;
+            width: 90px;
             height: 40px;
 
             states [
@@ -394,7 +421,7 @@ export component FilterControlStrip {
         GainController {
             gain: EQManagerUI.eq_filters[id].gain;
             id: id;
-            width: 100px;
+            width: 80px;
             height: 40px;
         }
         QController {
@@ -414,7 +441,7 @@ export component EQCanvas {
     height: 800px;
     
     Rectangle {
-        background: #b792ae;
+        background: #c1f3ff;
     }
 
     touch-area := TouchArea {
@@ -466,8 +493,27 @@ export component EQCanvas {
             EQManagerUI.calculate_filter_coefficients(EQManagerUI.selected_filter);
             accept;
         }
+
+        double-clicked => {
+            EQManagerUI.set_filter_enabled(EQManagerUI.selected_filter, !EQManagerUI.eq_filters[EQManagerUI.selected_filter].enabled);
+            EQManagerUI.calculate_filter_coefficients(EQManagerUI.selected_filter);
+        }
     }
     
+
+    // Draw EQ Sum Curves
+    Path {
+        stroke: black;
+        fill: #8884c3;
+        stroke-width: 2px;
+        commands: EQManagerUI.eq_sum_curve;
+        viewbox-x: 0;
+        viewbox-y: -200;
+        viewbox-height: 400;
+        viewbox-width: 800;
+    }
+
+    // Draw EQ Curves
     for filter in EQManagerUI.eq_filters:  
         // Curve
         Path {
@@ -478,21 +524,24 @@ export component EQCanvas {
             stroke: black;
             stroke-width: 1px;
             commands: filter.curve;
+            fill: filter.enabled?  #c38484 : transparent;
+            opacity: filter.selected? 0.2 : 0.15;
         }
 
     // Draw interactive filter control point 
     for filter in EQManagerUI.eq_filters:
         // Circle width radius 15
         Rectangle {
-            x: filter.circle_x - 15px;
-            y: filter.circle_y - 15px;
-            width: 30px;
+            x: filter.circle_x - 5px;
+            y: filter.circle_y - 5px;
+            width: 10px;
             height: self.width;
             Rectangle {
                 width: parent.width;
                 height: self.width;
                 border-radius: self.width/2;
-                background: #914f4f;
+                background: #b18080;
+                opacity: 0.55;
             }
             
         }

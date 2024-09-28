@@ -5,7 +5,7 @@ use std::{f32::INFINITY, rc::Rc};
 
 use biquad::{Coefficients, Hertz};
 use slint::{ComponentHandle, Model, ModelRc, VecModel, Weak};
-use crate::{signal_analysis::{calculate_biquad_response, f_to_lin_skew, points_to_smooth_svg_path}, ui::*}; //{EQManagerUI,TestWindow, EqFilter, EQGraphManager};
+use crate::{signal_analysis::{calculate_biquad_response, f_to_lin_skew, points_to_smooth_svg_path}, ui::*, EqCurves}; //{EQManagerUI,TestWindow, EqFilter, EQGraphManager};
 
 
 fn map_filtertype(filter_type: EQFilterTypeEnum, gain: f32) -> biquad::Type<f32> {
@@ -66,8 +66,15 @@ impl EqControl {
     
     pub fn init(&self, handle: &TestWindow, tx: std::sync::mpsc::Sender<Coefficients<f32>>) {
         let eq_manager = handle.global::<EQManagerUI>();
-        let _eq_settings = handle.global::<EQManagerSettings>();
+        let eq_settings = handle.global::<EQManagerSettings>();
         
+        let mut eq_curves = EqCurves {
+            curves: vec![0.0f32; eq_settings.get_eq_filters().row_count() * eq_settings.get_num_freq_points() as usize],
+            sum_curve: vec![0.0; eq_settings.get_num_freq_points() as usize],
+            n_curves: eq_settings.get_eq_filters().row_count(),
+            n_samples: eq_settings.get_num_freq_points() as usize,
+            is_active: [true; 8],
+        };
         
         
         eq_manager.set_test(32.0);
@@ -80,7 +87,7 @@ impl EqControl {
                 
                 let eq_filter: Vec<EqFilter> = Vec::new();
                 let eq_filter = Rc::new(VecModel::from(eq_filter));      
-                
+                let n_filters = eq_filter.row_count();
                 let init_filters = wu.global::<EQManagerSettings>().get_eq_filters();
                 init_filters.iter()
                     .enumerate()
@@ -109,6 +116,10 @@ impl EqControl {
                 let eq_filter = ModelRc::new((eq_filter.clone()));      
                 
                 wu.global::<EQManagerUI>().set_eq_filters(eq_filter);    
+                for k in 0..n_filters {
+                    wu.global::<EQManagerUI>().invoke_calculate_filter_coefficients(k as i32);
+                }
+                // wu.global::<EQManagerUI>().invoke_calculate_filter_coefficients(0);
             }
         });
         
@@ -144,6 +155,7 @@ impl EqControl {
                 let mut filter = filters.row_data(id as usize).unwrap();
                 filter.q = q.clamp(wu.global::<EQManagerSettings>().get_min_q(), wu.global::<EQManagerSettings>().get_max_q());
                 filters.set_row_data(id as usize, filter);
+                
         }}
         );
         eq_manager.on_set_filter_type({
@@ -154,6 +166,7 @@ impl EqControl {
                 let mut filter = filters.row_data(id as usize).unwrap();
                 filter.filter_type = filter_type;
                 filters.set_row_data(id as usize, filter);
+                wu.global::<EQManagerUI>().invoke_calculate_filter_coefficients(id);
         }}
         );
         eq_manager.on_set_filter_enabled({
@@ -219,6 +232,26 @@ impl EqControl {
                         fs,
                         wu.global::<EQManagerSettings>().get_num_freq_points() as usize);
                 
+
+                // update sum curve
+                eq_curves.copy_from_slice(id as usize, &filter_response, filter.enabled);
+                eq_curves.update();
+                let points_sum_curve: Vec<(f32,f32)> = 
+                eq_curves.sum_curve
+                    .iter()
+                    .enumerate()
+                    .map(|x| {
+                        // map_to_canvas(x, wu.global::<EQManagerSettings>()., n_freq_points, eq_canvas_half_height)
+                        (x.0 as f32 
+                            / wu.global::<EQManagerSettings>().get_num_freq_points() as f32 
+                            * wu.global::<EQManagerSettings>().get_eq_graph_width(),
+                            /* wu.global::<EQManagerSettings>().get_max_gain() */ - x.1 
+                            / wu.global::<EQManagerSettings>().get_max_gain() 
+                            * wu.global::<EQManagerSettings>().get_eq_graph_height() / 2.0 )
+                    }).collect();        
+                let svg_sum = points_to_smooth_svg_path(&points_sum_curve, 0.2);
+
+
                 let points: Vec<(f32,f32)> = 
                     filter_response
                         .iter()
@@ -238,6 +271,8 @@ impl EqControl {
                 let mut filter = wu.global::<EQManagerUI>().get_eq_filters().row_data(id as usize).unwrap();
                 filter.curve = svg;
                 wu.global::<EQManagerUI>().get_eq_filters().set_row_data(id as usize, filter);
+                wu.global::<EQManagerUI>().set_eq_sum_curve(svg_sum);
+                // send to audiothread         
                 let _ = tx.send(coeffs);                        
             }
         });
